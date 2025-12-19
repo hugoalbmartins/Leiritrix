@@ -428,7 +428,8 @@ class CRMLeiritrixTester:
         if self.failed_tests:
             self.log("❌ Failed Tests:")
             for test in self.failed_tests:
-                self.log(f"   - {test['name']}: {test.get('error', f'Expected {test.get(\"expected\")}, got {test.get(\"actual\")}')}")
+                error_msg = test.get('error', f"Expected {test.get('expected')}, got {test.get('actual')}")
+                self.log(f"   - {test['name']}: {error_msg}")
         
         return {
             'total_tests': self.tests_run,

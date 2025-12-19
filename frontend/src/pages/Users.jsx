@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth, API } from "@/App";
 import axios from "axios";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,10 +20,22 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { 
   Users as UsersIcon, 
   Plus, 
+  Edit2,
+  Trash2,
   UserCheck, 
   UserX,
   Shield,
@@ -40,9 +52,12 @@ export default function Users() {
   const { token, user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [createModal, setCreateModal] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [newUser, setNewUser] = useState({
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+  
+  const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
@@ -65,25 +80,81 @@ export default function Users() {
     }
   };
 
-  const handleCreateUser = async () => {
-    if (!newUser.name || !newUser.email || !newUser.password) {
-      toast.error("Preencha todos os campos obrigatórios");
+  const openCreateModal = () => {
+    setEditingUser(null);
+    setFormData({ name: "", email: "", password: "", role: "vendedor" });
+    setModalOpen(true);
+  };
+
+  const openEditModal = (user) => {
+    setEditingUser(user);
+    setFormData({
+      name: user.name || "",
+      email: user.email || "",
+      password: "",
+      role: user.role || "vendedor"
+    });
+    setModalOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!formData.name || !formData.email) {
+      toast.error("Nome e Email são obrigatórios");
+      return;
+    }
+    
+    if (!editingUser && !formData.password) {
+      toast.error("Password é obrigatória para novos utilizadores");
       return;
     }
 
-    setCreating(true);
+    setSaving(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const response = await axios.post(`${API}/auth/register`, newUser, { headers });
-      setUsers([...users, response.data]);
-      setCreateModal(false);
-      setNewUser({ name: "", email: "", password: "", role: "vendedor" });
-      toast.success("Utilizador criado com sucesso");
+      
+      if (editingUser) {
+        // Update user
+        const updateData = {
+          name: formData.name,
+          email: formData.email,
+          role: formData.role
+        };
+        if (formData.password) {
+          updateData.password = formData.password;
+        }
+        
+        const response = await axios.put(`${API}/users/${editingUser.id}`, updateData, { headers });
+        setUsers(users.map(u => u.id === editingUser.id ? response.data : u));
+        toast.success("Utilizador atualizado");
+      } else {
+        // Create user
+        const response = await axios.post(`${API}/auth/register`, formData, { headers });
+        setUsers([...users, response.data]);
+        toast.success("Utilizador criado");
+      }
+      
+      setModalOpen(false);
     } catch (error) {
-      const message = error.response?.data?.detail || "Erro ao criar utilizador";
+      const message = error.response?.data?.detail || "Erro ao guardar utilizador";
       toast.error(message);
     } finally {
-      setCreating(false);
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      await axios.delete(`${API}/users/${deleteId}`, { headers });
+      setUsers(users.filter(u => u.id !== deleteId));
+      toast.success("Utilizador eliminado");
+    } catch (error) {
+      const message = error.response?.data?.detail || "Erro ao eliminar utilizador";
+      toast.error(message);
+    } finally {
+      setDeleteId(null);
     }
   };
 
@@ -95,17 +166,6 @@ export default function Users() {
       toast.success("Estado atualizado");
     } catch (error) {
       toast.error("Erro ao atualizar estado");
-    }
-  };
-
-  const updateUserRole = async (userId, newRole) => {
-    try {
-      const headers = { Authorization: `Bearer ${token}` };
-      await axios.put(`${API}/users/${userId}/role?role=${newRole}`, {}, { headers });
-      setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
-      toast.success("Role atualizado");
-    } catch (error) {
-      toast.error("Erro ao atualizar role");
     }
   };
 
@@ -131,7 +191,7 @@ export default function Users() {
           <p className="text-white/50 text-sm mt-1">Gerir utilizadores do sistema</p>
         </div>
         <Button 
-          onClick={() => setCreateModal(true)}
+          onClick={openCreateModal}
           className="btn-primary btn-primary-glow flex items-center gap-2"
           data-testid="new-user-btn"
         >
@@ -166,50 +226,50 @@ export default function Users() {
                   )}
                 </div>
 
-                <div className="space-y-4">
-                  {/* Role */}
-                  <div>
-                    <Label className="form-label text-xs mb-2 flex items-center gap-1">
-                      <Shield size={12} /> Role
-                    </Label>
-                    <Select 
-                      value={user.role} 
-                      onValueChange={(value) => updateUserRole(user.id, value)}
-                      disabled={isCurrentUser}
-                    >
-                      <SelectTrigger className="form-input" data-testid={`role-select-${user.id}`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-[#082d32] border-white/10">
-                        {ROLES.map((role) => (
-                          <SelectItem key={role.value} value={role.value} className="text-white hover:bg-white/10">
-                            {role.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="mb-4">
+                  <Badge className={`${roleInfo.color} text-xs`}>
+                    {roleInfo.label}
+                  </Badge>
+                  {isCurrentUser && (
+                    <Badge className="ml-2 bg-white/10 text-white/50 text-xs">
+                      Você
+                    </Badge>
+                  )}
+                </div>
 
-                  {/* Toggle Active */}
+                <div className="flex gap-2 pt-4 border-t border-white/5">
+                  <Button
+                    onClick={() => openEditModal(user)}
+                    variant="ghost"
+                    size="sm"
+                    className="flex-1 text-white/70 hover:text-[#c8f31d]"
+                    data-testid={`edit-user-${user.id}`}
+                  >
+                    <Edit2 size={16} className="mr-1" />
+                    Editar
+                  </Button>
+                  
                   {!isCurrentUser && (
-                    <Button
-                      onClick={() => toggleUserActive(user.id)}
-                      variant="ghost"
-                      className={`w-full ${user.active ? 'text-red-400 hover:bg-red-400/10' : 'text-green-400 hover:bg-green-400/10'}`}
-                      data-testid={`toggle-user-${user.id}`}
-                    >
-                      {user.active ? (
-                        <>
-                          <UserX size={16} className="mr-2" />
-                          Desativar
-                        </>
-                      ) : (
-                        <>
-                          <UserCheck size={16} className="mr-2" />
-                          Ativar
-                        </>
-                      )}
-                    </Button>
+                    <>
+                      <Button
+                        onClick={() => toggleUserActive(user.id)}
+                        variant="ghost"
+                        size="sm"
+                        className={`${user.active ? 'text-red-400 hover:bg-red-400/10' : 'text-green-400 hover:bg-green-400/10'}`}
+                        data-testid={`toggle-user-${user.id}`}
+                      >
+                        {user.active ? <UserX size={16} /> : <UserCheck size={16} />}
+                      </Button>
+                      <Button
+                        onClick={() => setDeleteId(user.id)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-white/70 hover:text-red-400"
+                        data-testid={`delete-user-${user.id}`}
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    </>
                   )}
                 </div>
               </CardContent>
@@ -218,52 +278,55 @@ export default function Users() {
         })}
       </div>
 
-      {/* Create User Modal */}
-      <Dialog open={createModal} onOpenChange={setCreateModal}>
+      {/* Create/Edit User Modal */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="bg-[#082d32] border-white/10">
           <DialogHeader>
-            <DialogTitle className="text-white font-['Manrope']">Novo Utilizador</DialogTitle>
+            <DialogTitle className="text-white font-['Manrope']">
+              {editingUser ? "Editar Utilizador" : "Novo Utilizador"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <Label htmlFor="name" className="form-label">Nome *</Label>
+              <Label className="form-label">Nome *</Label>
               <Input
-                id="name"
-                value={newUser.name}
-                onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="form-input mt-1"
                 placeholder="Nome completo"
-                data-testid="new-user-name"
+                data-testid="user-name-input"
               />
             </div>
             <div>
-              <Label htmlFor="email" className="form-label">Email *</Label>
+              <Label className="form-label">Email *</Label>
               <Input
-                id="email"
                 type="email"
-                value={newUser.email}
-                onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="form-input mt-1"
                 placeholder="email@leiritrix.pt"
-                data-testid="new-user-email"
+                data-testid="user-email-input"
               />
             </div>
             <div>
-              <Label htmlFor="password" className="form-label">Palavra-passe *</Label>
+              <Label className="form-label">
+                Palavra-passe {editingUser ? "(deixe vazio para manter)" : "*"}
+              </Label>
               <Input
-                id="password"
                 type="password"
-                value={newUser.password}
-                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="form-input mt-1"
                 placeholder="••••••••"
-                data-testid="new-user-password"
+                data-testid="user-password-input"
               />
             </div>
             <div>
-              <Label htmlFor="role" className="form-label">Role</Label>
-              <Select value={newUser.role} onValueChange={(v) => setNewUser({ ...newUser, role: v })}>
-                <SelectTrigger className="form-input mt-1" data-testid="new-user-role">
+              <Label className="form-label flex items-center gap-1">
+                <Shield size={14} /> Role
+              </Label>
+              <Select value={formData.role} onValueChange={(v) => setFormData({ ...formData, role: v })}>
+                <SelectTrigger className="form-input mt-1" data-testid="user-role-select">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-[#082d32] border-white/10">
@@ -279,29 +342,50 @@ export default function Users() {
           <DialogFooter>
             <Button
               variant="ghost"
-              onClick={() => setCreateModal(false)}
+              onClick={() => setModalOpen(false)}
               className="btn-secondary"
             >
               Cancelar
             </Button>
             <Button
-              onClick={handleCreateUser}
-              disabled={creating}
+              onClick={handleSave}
+              disabled={saving}
               className="btn-primary btn-primary-glow"
-              data-testid="create-user-btn"
+              data-testid="save-user-btn"
             >
-              {creating ? (
+              {saving ? (
                 <>
                   <Loader2 size={18} className="mr-2 animate-spin" />
-                  A criar...
+                  A guardar...
                 </>
               ) : (
-                "Criar Utilizador"
+                editingUser ? "Guardar" : "Criar"
               )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent className="bg-[#082d32] border-white/10">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Eliminar Utilizador</AlertDialogTitle>
+            <AlertDialogDescription className="text-white/60">
+              Tem a certeza que pretende eliminar este utilizador? Esta ação não pode ser revertida.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="btn-secondary">Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDelete}
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

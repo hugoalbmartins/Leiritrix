@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext } from "react";
 import "@/App.css";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import SaleForm from "@/pages/SaleForm";
 import SaleDetail from "@/pages/SaleDetail";
 import Reports from "@/pages/Reports";
 import Users from "@/pages/Users";
+import Partners from "@/pages/Partners";
 import Layout from "@/components/Layout";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -134,7 +135,12 @@ function AppRoutes() {
         <Route path="sales" element={<Sales />} />
         <Route path="sales/new" element={<SaleForm />} />
         <Route path="sales/:id" element={<SaleDetail />} />
-        <Route path="sales/:id/edit" element={<SaleForm />} />
+        <Route path="sales/:id/edit" element={<SaleDetail editMode={true} />} />
+        <Route path="partners" element={
+          <ProtectedRoute requireAdminOrBO>
+            <Partners />
+          </ProtectedRoute>
+        } />
         <Route path="reports" element={
           <ProtectedRoute requireAdminOrBO>
             <Reports />

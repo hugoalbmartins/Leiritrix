@@ -10,7 +10,8 @@ import {
   Menu, 
   X,
   Bell,
-  PlusCircle
+  PlusCircle,
+  Building2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -25,6 +26,7 @@ export const Layout = () => {
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, show: true },
     { name: "Vendas", href: "/sales", icon: ShoppingCart, show: true },
     { name: "Nova Venda", href: "/sales/new", icon: PlusCircle, show: true },
+    { name: "Parceiros", href: "/partners", icon: Building2, show: isAdminOrBackoffice },
     { name: "Relatórios", href: "/reports", icon: FileText, show: isAdminOrBackoffice },
     { name: "Utilizadores", href: "/users", icon: Users, show: isAdmin },
   ];

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth, API } from "@/App";
 import { Link } from "react-router-dom";
 import axios from "axios";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,6 @@ import {
   Zap,
   Phone,
   Sun,
-  Filter,
   X
 } from "lucide-react";
 import { toast } from "sonner";
@@ -59,30 +58,38 @@ const TYPE_MAP = {
 export default function Sales() {
   const { token, isAdminOrBackoffice } = useAuth();
   const [sales, setSales] = useState([]);
+  const [partners, setPartners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [partnerFilter, setPartnerFilter] = useState("");
   const [deleteId, setDeleteId] = useState(null);
 
   useEffect(() => {
-    fetchSales();
-  }, [token, statusFilter, categoryFilter]);
+    fetchData();
+  }, [token, statusFilter, categoryFilter, partnerFilter]);
 
-  const fetchSales = async () => {
+  const fetchData = async () => {
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const params = new URLSearchParams();
       
-      if (statusFilter) params.append("status", statusFilter);
-      if (categoryFilter) params.append("category", categoryFilter);
+      // Fetch partners for filter
+      const partnersRes = await axios.get(`${API}/partners`, { headers });
+      setPartners(partnersRes.data);
+      
+      // Fetch sales
+      const params = new URLSearchParams();
+      if (statusFilter && statusFilter !== "all") params.append("status", statusFilter);
+      if (categoryFilter && categoryFilter !== "all") params.append("category", categoryFilter);
+      if (partnerFilter && partnerFilter !== "all") params.append("partner_id", partnerFilter);
       if (search) params.append("search", search);
 
-      const response = await axios.get(`${API}/sales?${params.toString()}`, { headers });
-      setSales(response.data);
+      const salesRes = await axios.get(`${API}/sales?${params.toString()}`, { headers });
+      setSales(salesRes.data);
     } catch (error) {
-      console.error("Error fetching sales:", error);
-      toast.error("Erro ao carregar vendas");
+      console.error("Error fetching data:", error);
+      toast.error("Erro ao carregar dados");
     } finally {
       setLoading(false);
     }
@@ -90,7 +97,7 @@ export default function Sales() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    fetchSales();
+    fetchData();
   };
 
   const handleDelete = async () => {
@@ -111,10 +118,11 @@ export default function Sales() {
   const clearFilters = () => {
     setStatusFilter("");
     setCategoryFilter("");
+    setPartnerFilter("");
     setSearch("");
   };
 
-  const hasFilters = statusFilter || categoryFilter || search;
+  const hasFilters = statusFilter || categoryFilter || partnerFilter || search;
 
   if (loading) {
     return (
@@ -160,7 +168,7 @@ export default function Sales() {
 
             {/* Status Filter */}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full lg:w-48 form-input" data-testid="status-filter">
+              <SelectTrigger className="w-full lg:w-44 form-input" data-testid="status-filter">
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent className="bg-[#082d32] border-white/10">
@@ -175,7 +183,7 @@ export default function Sales() {
 
             {/* Category Filter */}
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-full lg:w-48 form-input" data-testid="category-filter">
+              <SelectTrigger className="w-full lg:w-44 form-input" data-testid="category-filter">
                 <SelectValue placeholder="Categoria" />
               </SelectTrigger>
               <SelectContent className="bg-[#082d32] border-white/10">
@@ -183,6 +191,21 @@ export default function Sales() {
                 {Object.entries(CATEGORY_MAP).map(([key, cat]) => (
                   <SelectItem key={key} value={key} className="text-white hover:bg-white/10">
                     {cat.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Partner Filter */}
+            <Select value={partnerFilter} onValueChange={setPartnerFilter}>
+              <SelectTrigger className="w-full lg:w-44 form-input" data-testid="partner-filter">
+                <SelectValue placeholder="Parceiro" />
+              </SelectTrigger>
+              <SelectContent className="bg-[#082d32] border-white/10">
+                <SelectItem value="all" className="text-white hover:bg-white/10">Todos</SelectItem>
+                {partners.map((partner) => (
+                  <SelectItem key={partner.id} value={partner.id} className="text-white hover:bg-white/10">
+                    {partner.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -251,7 +274,7 @@ export default function Sales() {
                           </span>
                         ) : "-"}
                       </td>
-                      <td className="text-white/80">{sale.partner}</td>
+                      <td className="text-white/80">{sale.partner_name}</td>
                       <td className="font-mono text-[#c8f31d]">
                         {new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(sale.contract_value)}
                       </td>

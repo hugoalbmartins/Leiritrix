@@ -57,6 +57,17 @@ class SaleType(str, Enum):
     NOVA_INSTALACAO = "nova_instalacao"
     REFID = "refid"
 
+class EnergyType(str, Enum):
+    ELETRICIDADE = "eletricidade"
+    GAS = "gas"
+    DUAL = "dual"
+
+# Portuguese power values (potências)
+POTENCIAS_PORTUGAL = [
+    "1.15", "2.3", "3.45", "4.6", "5.75", "6.9", "10.35", "13.8", 
+    "17.25", "20.7", "27.6", "34.5", "41.4", "Outra"
+]
+
 # Models
 class UserBase(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -66,6 +77,12 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    role: Optional[UserRole] = None
+    password: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -83,40 +100,69 @@ class UserResponse(BaseModel):
     role: UserRole
     active: bool
 
+# Partner Models
+class PartnerBase(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: str
+    email: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+
+class PartnerCreate(PartnerBase):
+    pass
+
+class PartnerUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+
+class Partner(PartnerBase):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    active: bool = True
+
+# Sale Models
 class SaleBase(BaseModel):
     model_config = ConfigDict(extra="ignore")
+    # Client info
     client_name: str
     client_email: Optional[str] = None
     client_phone: Optional[str] = None
+    client_address: Optional[str] = None
     client_nif: Optional[str] = None
+    # Contract info
     category: SaleCategory
     sale_type: Optional[SaleType] = None
-    partner: str
+    partner_id: str  # Now required - reference to Partner
     contract_value: float = 0
     loyalty_months: int = 0
     notes: Optional[str] = None
+    # Energy specific fields
+    energy_type: Optional[EnergyType] = None
+    cpe: Optional[str] = None
+    potencia: Optional[str] = None
+    cui: Optional[str] = None
+    escalao: Optional[str] = None
+    # Telecom specific fields
+    req: Optional[str] = None
 
 class SaleCreate(SaleBase):
     pass
 
+# Limited update - only status, date, notes, REQ (telecom)
 class SaleUpdate(BaseModel):
-    client_name: Optional[str] = None
-    client_email: Optional[str] = None
-    client_phone: Optional[str] = None
-    client_nif: Optional[str] = None
-    category: Optional[SaleCategory] = None
-    sale_type: Optional[SaleType] = None
-    partner: Optional[str] = None
-    contract_value: Optional[float] = None
-    loyalty_months: Optional[int] = None
-    notes: Optional[str] = None
     status: Optional[SaleStatus] = None
+    active_date: Optional[str] = None  # ISO date string
+    notes: Optional[str] = None
+    req: Optional[str] = None  # Only for telecom
 
 class Sale(SaleBase):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     status: SaleStatus = SaleStatus.EM_NEGOCIACAO
     seller_id: str
     seller_name: str
+    partner_name: str = ""  # Denormalized for display
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     active_date: Optional[datetime] = None
@@ -127,13 +173,6 @@ class Sale(SaleBase):
 
 class CommissionAssign(BaseModel):
     commission: float
-
-class ReportFilter(BaseModel):
-    start_date: Optional[datetime] = None
-    end_date: Optional[datetime] = None
-    category: Optional[SaleCategory] = None
-    status: Optional[SaleStatus] = None
-    seller_id: Optional[str] = None
 
 # Helper functions
 def hash_password(password: str) -> str:
@@ -216,6 +255,48 @@ async def list_users(current_user: dict = Depends(require_admin)):
     users = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(1000)
     return [UserResponse(**u) for u in users]
 
+@api_router.get("/users/{user_id}", response_model=UserResponse)
+async def get_user(user_id: str, current_user: dict = Depends(require_admin)):
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilizador não encontrado")
+    return UserResponse(**user)
+
+@api_router.put("/users/{user_id}", response_model=UserResponse)
+async def update_user(user_id: str, update_data: UserUpdate, current_user: dict = Depends(require_admin)):
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilizador não encontrado")
+    
+    update_dict = {k: v for k, v in update_data.model_dump().items() if v is not None}
+    
+    # Handle password update
+    if "password" in update_dict:
+        update_dict["password_hash"] = hash_password(update_dict.pop("password"))
+    
+    # Check for email conflict
+    if "email" in update_dict and update_dict["email"] != user["email"]:
+        existing = await db.users.find_one({"email": update_dict["email"]})
+        if existing:
+            raise HTTPException(status_code=400, detail="Email já registado")
+    
+    if update_dict:
+        await db.users.update_one({"id": user_id}, {"$set": update_dict})
+    
+    updated_user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+    return UserResponse(**updated_user)
+
+@api_router.delete("/users/{user_id}")
+async def delete_user(user_id: str, current_user: dict = Depends(require_admin)):
+    # Prevent self-deletion
+    if user_id == current_user["id"]:
+        raise HTTPException(status_code=400, detail="Não pode eliminar a própria conta")
+    
+    result = await db.users.delete_one({"id": user_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Utilizador não encontrado")
+    return {"message": "Utilizador eliminado"}
+
 @api_router.put("/users/{user_id}/toggle-active")
 async def toggle_user_active(user_id: str, current_user: dict = Depends(require_admin)):
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
@@ -226,27 +307,96 @@ async def toggle_user_active(user_id: str, current_user: dict = Depends(require_
     await db.users.update_one({"id": user_id}, {"$set": {"active": new_status}})
     return {"message": "Status atualizado", "active": new_status}
 
-@api_router.put("/users/{user_id}/role")
-async def update_user_role(user_id: str, role: UserRole, current_user: dict = Depends(require_admin)):
-    result = await db.users.update_one({"id": user_id}, {"$set": {"role": role}})
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Utilizador não encontrado")
-    return {"message": "Role atualizado"}
+# Partner endpoints
+@api_router.post("/partners")
+async def create_partner(partner_data: PartnerCreate, current_user: dict = Depends(require_admin_or_backoffice)):
+    partner = Partner(**partner_data.model_dump())
+    partner_dict = partner.model_dump()
+    partner_dict["created_at"] = partner_dict["created_at"].isoformat()
+    
+    await db.partners.insert_one(partner_dict)
+    partner_dict.pop("_id", None)
+    return partner_dict
+
+@api_router.get("/partners")
+async def list_partners(current_user: dict = Depends(get_current_user)):
+    partners = await db.partners.find({"active": True}, {"_id": 0}).sort("name", 1).to_list(1000)
+    return partners
+
+@api_router.get("/partners/all")
+async def list_all_partners(current_user: dict = Depends(require_admin_or_backoffice)):
+    partners = await db.partners.find({}, {"_id": 0}).sort("name", 1).to_list(1000)
+    return partners
+
+@api_router.get("/partners/{partner_id}")
+async def get_partner(partner_id: str, current_user: dict = Depends(get_current_user)):
+    partner = await db.partners.find_one({"id": partner_id}, {"_id": 0})
+    if not partner:
+        raise HTTPException(status_code=404, detail="Parceiro não encontrado")
+    return partner
+
+@api_router.put("/partners/{partner_id}")
+async def update_partner(partner_id: str, update_data: PartnerUpdate, current_user: dict = Depends(require_admin_or_backoffice)):
+    partner = await db.partners.find_one({"id": partner_id}, {"_id": 0})
+    if not partner:
+        raise HTTPException(status_code=404, detail="Parceiro não encontrado")
+    
+    update_dict = {k: v for k, v in update_data.model_dump().items() if v is not None}
+    
+    if update_dict:
+        await db.partners.update_one({"id": partner_id}, {"$set": update_dict})
+    
+    updated_partner = await db.partners.find_one({"id": partner_id}, {"_id": 0})
+    return updated_partner
+
+@api_router.delete("/partners/{partner_id}")
+async def delete_partner(partner_id: str, current_user: dict = Depends(require_admin_or_backoffice)):
+    # Check if partner has sales
+    sales_count = await db.sales.count_documents({"partner_id": partner_id})
+    if sales_count > 0:
+        # Soft delete - just deactivate
+        await db.partners.update_one({"id": partner_id}, {"$set": {"active": False}})
+        return {"message": "Parceiro desativado (tem vendas associadas)"}
+    
+    result = await db.partners.delete_one({"id": partner_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Parceiro não encontrado")
+    return {"message": "Parceiro eliminado"}
+
+@api_router.put("/partners/{partner_id}/toggle-active")
+async def toggle_partner_active(partner_id: str, current_user: dict = Depends(require_admin_or_backoffice)):
+    partner = await db.partners.find_one({"id": partner_id}, {"_id": 0})
+    if not partner:
+        raise HTTPException(status_code=404, detail="Parceiro não encontrado")
+    
+    new_status = not partner.get("active", True)
+    await db.partners.update_one({"id": partner_id}, {"$set": {"active": new_status}})
+    return {"message": "Status atualizado", "active": new_status}
+
+# Utility endpoint for potências
+@api_router.get("/config/potencias")
+async def get_potencias():
+    return POTENCIAS_PORTUGAL
 
 # Sales endpoints
 @api_router.post("/sales", response_model=dict)
 async def create_sale(sale_data: SaleCreate, current_user: dict = Depends(get_current_user)):
+    # Validate partner exists
+    partner = await db.partners.find_one({"id": sale_data.partner_id, "active": True}, {"_id": 0})
+    if not partner:
+        raise HTTPException(status_code=400, detail="Parceiro não encontrado ou inativo")
+    
     sale = Sale(
         **sale_data.model_dump(),
         seller_id=current_user["id"],
-        seller_name=current_user["name"]
+        seller_name=current_user["name"],
+        partner_name=partner["name"]
     )
     sale_dict = sale.model_dump()
     sale_dict["created_at"] = sale_dict["created_at"].isoformat()
     sale_dict["updated_at"] = sale_dict["updated_at"].isoformat()
     
     await db.sales.insert_one(sale_dict)
-    # Remove MongoDB _id before returning
     sale_dict.pop("_id", None)
     return sale_dict
 
@@ -255,6 +405,7 @@ async def list_sales(
     status: Optional[SaleStatus] = None,
     category: Optional[SaleCategory] = None,
     seller_id: Optional[str] = None,
+    partner_id: Optional[str] = None,
     search: Optional[str] = None,
     current_user: dict = Depends(get_current_user)
 ):
@@ -270,11 +421,13 @@ async def list_sales(
         query["status"] = status
     if category:
         query["category"] = category
+    if partner_id:
+        query["partner_id"] = partner_id
     if search:
         query["$or"] = [
             {"client_name": {"$regex": search, "$options": "i"}},
             {"client_nif": {"$regex": search, "$options": "i"}},
-            {"partner": {"$regex": search, "$options": "i"}}
+            {"partner_name": {"$regex": search, "$options": "i"}}
         ]
     
     sales = await db.sales.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
@@ -305,15 +458,34 @@ async def update_sale(sale_id: str, update_data: SaleUpdate, current_user: dict 
     update_dict = {k: v for k, v in update_data.model_dump().items() if v is not None}
     update_dict["updated_at"] = datetime.now(timezone.utc).isoformat()
     
-    # Se o status mudar para ATIVO, definir a data de ativação e calcular fim de fidelização
+    # REQ field only allowed for telecom
+    if "req" in update_dict and sale.get("category") != SaleCategory.TELECOMUNICACOES:
+        del update_dict["req"]
+    
+    # Handle active_date parsing
+    if "active_date" in update_dict and update_dict["active_date"]:
+        try:
+            active_date = datetime.fromisoformat(update_dict["active_date"].replace("Z", "+00:00"))
+            update_dict["active_date"] = active_date.isoformat()
+            
+            # Calculate loyalty end date
+            loyalty_months = sale.get("loyalty_months", 0)
+            if loyalty_months > 0:
+                loyalty_end = active_date + timedelta(days=loyalty_months * 30)
+                update_dict["loyalty_end_date"] = loyalty_end.isoformat()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Formato de data inválido")
+    
+    # Se o status mudar para ATIVO e não há active_date, definir agora
     if update_data.status == SaleStatus.ATIVO and sale.get("status") != SaleStatus.ATIVO:
-        active_date = datetime.now(timezone.utc)
-        update_dict["active_date"] = active_date.isoformat()
-        
-        loyalty_months = sale.get("loyalty_months", 0)
-        if loyalty_months > 0:
-            loyalty_end = active_date + timedelta(days=loyalty_months * 30)
-            update_dict["loyalty_end_date"] = loyalty_end.isoformat()
+        if not sale.get("active_date") and "active_date" not in update_dict:
+            active_date = datetime.now(timezone.utc)
+            update_dict["active_date"] = active_date.isoformat()
+            
+            loyalty_months = sale.get("loyalty_months", 0)
+            if loyalty_months > 0:
+                loyalty_end = active_date + timedelta(days=loyalty_months * 30)
+                update_dict["loyalty_end_date"] = loyalty_end.isoformat()
     
     await db.sales.update_one({"id": sale_id}, {"$set": update_dict})
     
@@ -357,10 +529,8 @@ async def get_dashboard_metrics(current_user: dict = Depends(get_current_user)):
     if current_user["role"] == UserRole.VENDEDOR:
         query["seller_id"] = current_user["id"]
     
-    # Total de vendas
     total_sales = await db.sales.count_documents(query)
     
-    # Vendas por status
     pipeline = [
         {"$match": query},
         {"$group": {"_id": "$status", "count": {"$sum": 1}}}
@@ -368,7 +538,6 @@ async def get_dashboard_metrics(current_user: dict = Depends(get_current_user)):
     status_counts = await db.sales.aggregate(pipeline).to_list(100)
     status_dict = {s["_id"]: s["count"] for s in status_counts}
     
-    # Vendas por categoria
     pipeline_cat = [
         {"$match": query},
         {"$group": {"_id": "$category", "count": {"$sum": 1}}}
@@ -376,7 +545,6 @@ async def get_dashboard_metrics(current_user: dict = Depends(get_current_user)):
     category_counts = await db.sales.aggregate(pipeline_cat).to_list(100)
     category_dict = {c["_id"]: c["count"] for c in category_counts}
     
-    # Valor total de contratos ativos
     active_query = {**query, "status": SaleStatus.ATIVO}
     pipeline_value = [
         {"$match": active_query},
@@ -385,7 +553,6 @@ async def get_dashboard_metrics(current_user: dict = Depends(get_current_user)):
     value_result = await db.sales.aggregate(pipeline_value).to_list(1)
     total_value = value_result[0]["total"] if value_result else 0
     
-    # Total de comissões
     pipeline_commission = [
         {"$match": {**query, "commission": {"$ne": None}}},
         {"$group": {"_id": None, "total": {"$sum": "$commission"}}}
@@ -393,7 +560,6 @@ async def get_dashboard_metrics(current_user: dict = Depends(get_current_user)):
     commission_result = await db.sales.aggregate(pipeline_commission).to_list(1)
     total_commission = commission_result[0]["total"] if commission_result else 0
     
-    # Vendas este mês
     now = datetime.now(timezone.utc)
     start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     month_query = {**query, "created_at": {"$gte": start_of_month.isoformat()}}
@@ -452,9 +618,8 @@ async def get_monthly_stats(months: int = 6, current_user: dict = Depends(get_cu
 # Loyalty Alerts endpoint
 @api_router.get("/alerts/loyalty")
 async def get_loyalty_alerts(current_user: dict = Depends(get_current_user)):
-    # Encontrar contratos ativos onde faltam <= 7 meses para o fim da fidelização
     now = datetime.now(timezone.utc)
-    alert_threshold = now + timedelta(days=7 * 30)  # 7 meses
+    alert_threshold = now + timedelta(days=7 * 30)  # 7 months
     
     query = {
         "status": SaleStatus.ATIVO,
@@ -466,7 +631,6 @@ async def get_loyalty_alerts(current_user: dict = Depends(get_current_user)):
     
     alerts = await db.sales.find(query, {"_id": 0}).sort("loyalty_end_date", 1).to_list(100)
     
-    # Calcular dias restantes
     for alert in alerts:
         if alert.get("loyalty_end_date"):
             end_date = datetime.fromisoformat(alert["loyalty_end_date"].replace("Z", "+00:00"))
@@ -483,6 +647,7 @@ async def generate_sales_report(
     category: Optional[SaleCategory] = None,
     status: Optional[SaleStatus] = None,
     seller_id: Optional[str] = None,
+    partner_id: Optional[str] = None,
     current_user: dict = Depends(require_admin_or_backoffice)
 ):
     query = {}
@@ -500,10 +665,11 @@ async def generate_sales_report(
         query["status"] = status
     if seller_id:
         query["seller_id"] = seller_id
+    if partner_id:
+        query["partner_id"] = partner_id
     
     sales = await db.sales.find(query, {"_id": 0}).sort("created_at", -1).to_list(10000)
     
-    # Calcular totais
     total_value = sum(s.get("contract_value", 0) for s in sales)
     total_commission = sum(s.get("commission", 0) or 0 for s in sales)
     
@@ -519,12 +685,10 @@ async def generate_sales_report(
 # Initialize default admin user
 @api_router.post("/init")
 async def init_system():
-    # Check if admin exists
     admin = await db.users.find_one({"role": UserRole.ADMIN})
     if admin:
         return {"message": "Sistema já inicializado"}
     
-    # Create default admin
     admin_user = User(
         email="admin@leiritrix.pt",
         name="Administrador",
@@ -545,7 +709,7 @@ async def init_system():
 # Root endpoint
 @api_router.get("/")
 async def root():
-    return {"message": "CRM Leiritrix API", "version": "1.0.0"}
+    return {"message": "CRM Leiritrix API", "version": "1.1.0"}
 
 # Include the router in the main app
 app.include_router(api_router)

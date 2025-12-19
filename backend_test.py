@@ -181,6 +181,22 @@ class CRMLeiritrixTester:
     def test_create_sale(self) -> bool:
         """Test creating a new sale"""
         self.log("=== Testing Sales Management ===")
+        
+        # First get available partners
+        success, partners = self.run_test(
+            "Get Partners for Sale",
+            "GET", 
+            "partners",
+            200
+        )
+        
+        if not success or not partners:
+            self.log("❌ No partners available for sale creation")
+            return False
+            
+        partner_id = partners[0]['id']
+        self.log(f"Using partner: {partners[0]['name']} (ID: {partner_id})")
+        
         sale_data = {
             "client_name": "Test Client EDP",
             "client_email": "test@client.pt",
@@ -188,7 +204,7 @@ class CRMLeiritrixTester:
             "client_nif": "123456789",
             "category": "energia",
             "sale_type": "nova_instalacao",
-            "partner": "EDP",
+            "partner_id": partner_id,
             "contract_value": 1500.50,
             "loyalty_months": 24,
             "notes": "Test sale for CRM testing"

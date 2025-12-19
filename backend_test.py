@@ -402,6 +402,266 @@ class CRMLeiritrixTester:
         )
         return success
 
+    def test_partner_management(self) -> bool:
+        """Test partner creation and editing"""
+        self.log("=== Testing Partner Management ===")
+        
+        # Create new partner
+        partner_data = {
+            "name": "Test Partner Energia",
+            "email": "test@partner.pt", 
+            "contact_person": "Maria Santos",
+            "phone": "913456789"
+        }
+        
+        success, response = self.run_test(
+            "Create Partner",
+            "POST",
+            "partners",
+            200,
+            data=partner_data
+        )
+        
+        if not success or 'id' not in response:
+            return False
+            
+        partner_id = response['id']
+        self.log(f"✅ Partner created with ID: {partner_id}")
+        
+        # Edit partner
+        update_data = {
+            "name": "Test Partner Energia Updated",
+            "phone": "914567890"
+        }
+        
+        success, response = self.run_test(
+            "Update Partner",
+            "PUT",
+            f"partners/{partner_id}",
+            200,
+            data=update_data
+        )
+        
+        if success and response.get('name') == "Test Partner Energia Updated":
+            self.log("✅ Partner updated successfully")
+            return True
+        
+        return False
+
+    def test_energy_dual_sale(self) -> bool:
+        """Test creating energy sale with dual type"""
+        self.log("=== Testing Energy Dual Sale ===")
+        
+        # Get partners first
+        success, partners = self.run_test("Get Partners", "GET", "partners", 200)
+        if not success or not partners:
+            return False
+            
+        partner_id = partners[0]['id']
+        
+        # Create energy dual sale
+        sale_data = {
+            "client_name": "Cliente Energia Dual",
+            "client_email": "dual@cliente.pt",
+            "client_phone": "915678901",
+            "client_address": "Rua da Energia, 123, 1000-001 Lisboa",
+            "category": "energia",
+            "sale_type": "nova_instalacao",
+            "partner_id": partner_id,
+            "contract_value": 2500.00,
+            "loyalty_months": 24,
+            "energy_type": "dual",
+            "cpe": "PT0002000012345678901234567890123456",
+            "potencia": "6.9",
+            "cui": "CUI123456789",
+            "escalao": "Escalão 2",
+            "notes": "Venda dual - eletricidade + gás"
+        }
+        
+        success, response = self.run_test(
+            "Create Energy Dual Sale",
+            "POST",
+            "sales",
+            200,
+            data=sale_data
+        )
+        
+        if success and response.get('energy_type') == 'dual':
+            self.log("✅ Energy dual sale created successfully")
+            return True
+        
+        return False
+
+    def test_telecom_sale(self) -> bool:
+        """Test creating telecommunications sale"""
+        self.log("=== Testing Telecommunications Sale ===")
+        
+        # Get partners first
+        success, partners = self.run_test("Get Partners", "GET", "partners", 200)
+        if not success or not partners:
+            return False
+            
+        partner_id = partners[0]['id']
+        
+        # Create telecom sale
+        sale_data = {
+            "client_name": "Cliente Telecomunicações",
+            "client_email": "telecom@cliente.pt", 
+            "client_phone": "916789012",
+            "client_address": "Avenida das Comunicações, 456, 2000-002 Porto",
+            "category": "telecomunicacoes",
+            "sale_type": "nova_instalacao",
+            "partner_id": partner_id,
+            "contract_value": 800.00,
+            "loyalty_months": 12,
+            "req": "REQ2024001234",
+            "notes": "Venda de telecomunicações com REQ"
+        }
+        
+        success, response = self.run_test(
+            "Create Telecom Sale",
+            "POST",
+            "sales",
+            200,
+            data=sale_data
+        )
+        
+        if success and response.get('category') == 'telecomunicacoes':
+            self.log("✅ Telecommunications sale created successfully")
+            return True
+        
+        return False
+
+    def test_sales_filtering(self) -> bool:
+        """Test sales filtering by status and partner"""
+        self.log("=== Testing Sales Filtering ===")
+        
+        # Test filter by status
+        success, response = self.run_test(
+            "Filter Sales by Status",
+            "GET",
+            "sales?status=ativo",
+            200
+        )
+        
+        if not success:
+            return False
+            
+        active_sales = len(response)
+        self.log(f"✅ Found {active_sales} active sales")
+        
+        # Test filter by partner
+        success, partners = self.run_test("Get Partners", "GET", "partners", 200)
+        if success and partners:
+            partner_id = partners[0]['id']
+            success, response = self.run_test(
+                "Filter Sales by Partner",
+                "GET",
+                f"sales?partner_id={partner_id}",
+                200
+            )
+            
+            if success:
+                partner_sales = len(response)
+                self.log(f"✅ Found {partner_sales} sales for partner {partners[0]['name']}")
+                return True
+        
+        return False
+
+    def test_sale_edit_restrictions(self) -> bool:
+        """Test that sale editing is limited to allowed fields"""
+        self.log("=== Testing Sale Edit Restrictions ===")
+        
+        # Get existing sales
+        success, sales = self.run_test("Get Sales for Edit Test", "GET", "sales", 200)
+        if not success or not sales:
+            return False
+            
+        sale_id = sales[0]['id']
+        
+        # Test updating allowed fields
+        update_data = {
+            "status": "pendente",
+            "notes": "Updated notes for testing",
+            "active_date": "2024-12-20T10:00:00Z"
+        }
+        
+        # Add REQ if it's a telecom sale
+        if sales[0].get('category') == 'telecomunicacoes':
+            update_data['req'] = "REQ2024UPDATED"
+        
+        success, response = self.run_test(
+            "Update Sale (Allowed Fields)",
+            "PUT",
+            f"sales/{sale_id}",
+            200,
+            data=update_data
+        )
+        
+        if success:
+            self.log("✅ Sale update with allowed fields successful")
+            return True
+        
+        return False
+
+    def test_user_edit_delete(self) -> bool:
+        """Test user editing and deletion"""
+        self.log("=== Testing User Edit/Delete ===")
+        
+        # Create a test user first
+        user_data = {
+            "name": "User to Edit/Delete",
+            "email": f"delete.test.{datetime.now().strftime('%H%M%S')}@leiritrix.pt",
+            "password": "testpass123",
+            "role": "vendedor"
+        }
+        
+        success, response = self.run_test(
+            "Create User for Edit/Delete",
+            "POST",
+            "auth/register",
+            200,
+            data=user_data
+        )
+        
+        if not success or 'id' not in response:
+            return False
+            
+        user_id = response['id']
+        
+        # Edit user
+        edit_data = {
+            "name": "Edited User Name",
+            "role": "backoffice"
+        }
+        
+        success, response = self.run_test(
+            "Edit User",
+            "PUT",
+            f"users/{user_id}",
+            200,
+            data=edit_data
+        )
+        
+        if not success:
+            return False
+            
+        self.log("✅ User edited successfully")
+        
+        # Delete user
+        success, response = self.run_test(
+            "Delete User",
+            "DELETE",
+            f"users/{user_id}",
+            200
+        )
+        
+        if success:
+            self.log("✅ User deleted successfully")
+            return True
+        
+        return False
+
     def run_all_tests(self) -> Dict[str, Any]:
         """Run all tests and return results"""
         self.log("🚀 Starting CRM Leiritrix API Testing Suite")

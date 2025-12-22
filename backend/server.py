@@ -71,6 +71,33 @@ POTENCIAS_PORTUGAL = [
     "17.25", "20.7", "27.6", "34.5", "41.4", "Outra"
 ]
 
+# Password validation regex
+# Min 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special char
+PASSWORD_PATTERN = re.compile(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};:\'",.<>?/\\|`~])[A-Za-z\d!@#$%^&*()_+\-=\[\]{};:\'",.<>?/\\|`~]{8,}$')
+
+def validate_password(password: str) -> bool:
+    """Validate password meets security requirements"""
+    return bool(PASSWORD_PATTERN.match(password))
+
+def generate_password(length: int = 12) -> str:
+    """Generate a random password that meets all requirements"""
+    # Ensure at least one of each required character type
+    lowercase = secrets.choice(string.ascii_lowercase)
+    uppercase = secrets.choice(string.ascii_uppercase)
+    digit = secrets.choice(string.digits)
+    special = secrets.choice('!@#$%^&*()_+-=[]{}')
+    
+    # Fill the rest with a mix
+    remaining_length = length - 4
+    all_chars = string.ascii_letters + string.digits + '!@#$%^&*()_+-=[]{}' 
+    remaining = ''.join(secrets.choice(all_chars) for _ in range(remaining_length))
+    
+    # Combine and shuffle
+    password_chars = list(lowercase + uppercase + digit + special + remaining)
+    secrets.SystemRandom().shuffle(password_chars)
+    
+    return ''.join(password_chars)
+
 # Models
 class UserBase(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -79,13 +106,17 @@ class UserBase(BaseModel):
     role: UserRole = UserRole.VENDEDOR
 
 class UserCreate(UserBase):
-    password: str
+    password: Optional[str] = None  # Now optional - will be auto-generated if not provided
 
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
     role: Optional[UserRole] = None
     password: Optional[str] = None
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -95,6 +126,7 @@ class User(UserBase):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     active: bool = True
+    must_change_password: bool = False
 
 class UserResponse(BaseModel):
     id: str
@@ -102,6 +134,7 @@ class UserResponse(BaseModel):
     name: str
     role: UserRole
     active: bool
+    must_change_password: bool = False
 
 # Partner Models
 class PartnerBase(BaseModel):

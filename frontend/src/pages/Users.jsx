@@ -32,16 +32,20 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { 
-  Users as UsersIcon, 
-  Plus, 
+import {
+  Users as UsersIcon,
+  Plus,
   Edit2,
   Trash2,
-  UserCheck, 
+  UserCheck,
   UserX,
   Shield,
-  Loader2
+  Loader2,
+  Eye,
+  EyeOff,
+  RefreshCw
 } from "lucide-react";
+import { generatePassword } from "@/utils/passwordGenerator";
 
 const ROLES = [
   { value: "admin", label: "Administrador", color: "bg-[#c8f31d] text-[#0d474f]" },
@@ -57,6 +61,7 @@ export default function Users() {
   const [editingUser, setEditingUser] = useState(null);
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -64,6 +69,12 @@ export default function Users() {
     password: "",
     role: "vendedor"
   });
+
+  const handleGeneratePassword = () => {
+    const generated = generatePassword(12);
+    setFormData({ ...formData, password: generated });
+    setShowPassword(true);
+  };
 
   useEffect(() => {
     fetchUsers();
@@ -311,15 +322,38 @@ export default function Users() {
             <div>
               <Label className="form-label">
                 Palavra-passe {editingUser ? "(deixe vazio para manter)" : "*"}
+                <span className="text-white/50 text-xs ml-2">
+                  (min 8 caracteres, 1 maiúscula, 1 minúscula, 1 dígito, 1 especial)
+                </span>
               </Label>
-              <Input
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="form-input mt-1"
-                placeholder="••••••••"
-                data-testid="user-password-input"
-              />
+              <div className="flex gap-2 mt-1">
+                <div className="relative flex-1">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="form-input pr-10"
+                    placeholder="••••••••"
+                    data-testid="user-password-input"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-white"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleGeneratePassword}
+                  variant="outline"
+                  className="form-input px-3"
+                  title="Gerar password automática"
+                >
+                  <RefreshCw size={18} />
+                </Button>
+              </div>
             </div>
             <div>
               <Label className="form-label flex items-center gap-1">

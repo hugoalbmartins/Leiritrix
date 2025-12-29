@@ -58,8 +58,10 @@ export default function SaleForm() {
     client_name: "",
     client_email: "",
     client_phone: "",
-    client_address: "",
     client_nif: "",
+    street_address: "",
+    postal_code: "",
+    city: "",
     category: "",
     sale_type: "",
     partner_id: "",
@@ -124,7 +126,7 @@ export default function SaleForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validation
     if (!formData.client_name || !formData.category || !formData.partner_id) {
       toast.error("Preencha os campos obrigatórios (Nome, Categoria, Parceiro)");
@@ -133,6 +135,26 @@ export default function SaleForm() {
 
     if (!formData.client_phone && !formData.client_email) {
       toast.error("Preencha pelo menos um contacto (telefone ou email)");
+      return;
+    }
+
+    if (!formData.client_nif) {
+      toast.error("O NIF é obrigatório");
+      return;
+    }
+
+    if (formData.client_nif.length !== 9 || !/^\d+$/.test(formData.client_nif)) {
+      toast.error("O NIF deve ter 9 dígitos numéricos");
+      return;
+    }
+
+    if (!formData.street_address || !formData.postal_code || !formData.city) {
+      toast.error("Todos os campos de morada são obrigatórios (Rua, Código Postal, Localidade)");
+      return;
+    }
+
+    if (!/^\d{4}-\d{3}$/.test(formData.postal_code)) {
+      toast.error("Código postal deve estar no formato 0000-000");
       return;
     }
 
@@ -260,13 +282,14 @@ export default function SaleForm() {
               </div>
               
               <div>
-                <Label htmlFor="client_nif" className="form-label">NIF</Label>
+                <Label htmlFor="client_nif" className="form-label">NIF *</Label>
                 <Input
                   id="client_nif"
                   value={formData.client_nif}
                   onChange={(e) => handleChange("client_nif", e.target.value)}
                   className="form-input"
                   placeholder="123456789"
+                  maxLength={9}
                   data-testid="client-nif-input"
                 />
               </div>
@@ -297,14 +320,39 @@ export default function SaleForm() {
               </div>
 
               <div className="md:col-span-2">
-                <Label htmlFor="client_address" className="form-label">Morada</Label>
+                <Label htmlFor="street_address" className="form-label">Rua e Número *</Label>
                 <Input
-                  id="client_address"
-                  value={formData.client_address}
-                  onChange={(e) => handleChange("client_address", e.target.value)}
+                  id="street_address"
+                  value={formData.street_address}
+                  onChange={(e) => handleChange("street_address", e.target.value)}
                   className="form-input"
-                  placeholder="Rua, número, código postal, cidade"
-                  data-testid="client-address-input"
+                  placeholder="Rua das Flores, nº 123, 2º Esq"
+                  data-testid="street-address-input"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="postal_code" className="form-label">Código Postal *</Label>
+                <Input
+                  id="postal_code"
+                  value={formData.postal_code}
+                  onChange={(e) => handleChange("postal_code", e.target.value)}
+                  className="form-input"
+                  placeholder="1000-100"
+                  maxLength={8}
+                  data-testid="postal-code-input"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="city" className="form-label">Localidade *</Label>
+                <Input
+                  id="city"
+                  value={formData.city}
+                  onChange={(e) => handleChange("city", e.target.value)}
+                  className="form-input"
+                  placeholder="Lisboa"
+                  data-testid="city-input"
                 />
               </div>
             </div>

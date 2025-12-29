@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { notificationsService } from './notificationsService';
 
 export const salesService = {
   async getSales(sellerId = null, filters = {}) {
@@ -45,10 +46,19 @@ export const salesService = {
       .single();
 
     if (error) throw error;
+
+    try {
+      await notificationsService.createSaleNotifications(data, 'sale_created');
+    } catch (notifError) {
+      console.error('Error creating notifications:', notifError);
+    }
+
     return data;
   },
 
   async updateSale(saleId, saleData) {
+    const originalSale = await this.getSaleById(saleId);
+
     const { data, error } = await supabase
       .from('sales')
       .update(saleData)
@@ -57,6 +67,15 @@ export const salesService = {
       .single();
 
     if (error) throw error;
+
+    if (originalSale && originalSale.status !== data.status) {
+      try {
+        await notificationsService.createSaleNotifications(data, 'sale_status_changed');
+      } catch (notifError) {
+        console.error('Error creating notifications:', notifError);
+      }
+    }
+
     return data;
   },
 

@@ -1,19 +1,19 @@
 import { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/App";
-import { 
-  LayoutDashboard, 
-  ShoppingCart, 
-  FileText, 
-  Users, 
-  LogOut, 
-  Menu, 
+import {
+  LayoutDashboard,
+  ShoppingCart,
+  FileText,
+  Users,
+  LogOut,
+  Menu,
   X,
-  Bell,
   PlusCircle,
   Building2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import NotificationBell from "@/components/NotificationBell";
 
 const LOGO_URL = "/leiritrix.png";
 
@@ -123,9 +123,7 @@ export const Layout = () => {
             {navigation.find(item => isActive(item.href))?.name || "CRM Leiritrix"}
           </h1>
           <div className="flex items-center gap-4">
-            <Link to="/dashboard" className="relative" data-testid="notifications-btn">
-              <Bell size={20} className="text-white/70 hover:text-white cursor-pointer transition-colors" />
-            </Link>
+            <NotificationBell userId={user?.id} />
           </div>
         </div>
 

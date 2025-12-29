@@ -69,13 +69,20 @@ export const authService = {
   },
 
   onAuthStateChange(callback) {
-    return supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        const userProfile = await this.getUserProfile(session.user.id);
-        callback(event, session, userProfile);
-      } else {
-        callback(event, session, null);
-      }
+    return supabase.auth.onAuthStateChange((event, session) => {
+      (async () => {
+        if (session?.user) {
+          try {
+            const userProfile = await this.getUserProfile(session.user.id);
+            callback(event, session, userProfile);
+          } catch (error) {
+            console.error('Error fetching user profile:', error);
+            callback(event, session, null);
+          }
+        } else {
+          callback(event, session, null);
+        }
+      })();
     });
   },
 };

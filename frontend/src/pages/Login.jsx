@@ -122,14 +122,6 @@ export default function Login() {
             )}
           </Button>
         </form>
-
-        {/* Default credentials hint */}
-        <div className="mt-6 p-4 rounded-lg bg-[#0d474f] border border-[#c8f31d]/20">
-          <p className="text-xs text-white/50 text-center">
-            <span className="text-[#c8f31d]">Credenciais iniciais:</span><br />
-            admin@leiritrix.pt / admin123
-          </p>
-        </div>
       </div>
     </div>
   );

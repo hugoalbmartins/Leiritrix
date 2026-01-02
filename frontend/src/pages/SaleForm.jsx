@@ -126,6 +126,11 @@ export default function SaleForm() {
     setLoadingOperators(true);
     try {
       const operatorsData = await operatorsService.getOperatorsByPartner(partnerId);
+      console.log('Fetched operators for partner:', {
+        partnerId,
+        operatorsCount: operatorsData.length,
+        operators: operatorsData.map(o => ({ id: o.id, name: o.name, categories: o.categories }))
+      });
       setOperators(operatorsData);
     } catch (error) {
       console.error("Error fetching operators:", error);
@@ -154,9 +159,9 @@ export default function SaleForm() {
       requiredCategories.push('paineis_solares');
     }
 
-    if (requiredCategories.length === 0) return operators;
+    if (requiredCategories.length === 0) return [];
 
-    return operators.filter(op => {
+    const filtered = operators.filter(op => {
       if (!op.categories || op.categories.length === 0) return false;
 
       if (formData.category === 'energia' && formData.energy_type === 'dual') {
@@ -165,6 +170,17 @@ export default function SaleForm() {
 
       return requiredCategories.some(cat => op.categories.includes(cat));
     });
+
+    console.log('Filtering operators:', {
+      category: formData.category,
+      energy_type: formData.energy_type,
+      requiredCategories,
+      totalOperators: operators.length,
+      filteredOperators: filtered.length,
+      filtered: filtered.map(o => ({ name: o.name, categories: o.categories }))
+    });
+
+    return filtered;
   };
 
   useEffect(() => {

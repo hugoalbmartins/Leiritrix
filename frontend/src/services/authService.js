@@ -2,15 +2,37 @@ import { supabase } from '@/lib/supabase';
 
 export const authService = {
   async signIn(email, password) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) throw error;
+      if (error) {
+        if (error.message.includes('Invalid login credentials')) {
+          throw new Error('Email ou password incorretos. Verifique as credenciais e tente novamente.');
+        }
+        if (error.message.includes('Email not confirmed')) {
+          throw new Error('Email não confirmado. Verifique a sua caixa de entrada.');
+        }
+        if (error.message.includes('Invalid API key')) {
+          console.error('Erro de API Key - Verifique as variáveis de ambiente no Vercel');
+          throw new Error('Erro de configuração. Contacte o administrador.');
+        }
+        throw error;
+      }
 
-    const userProfile = await this.getUserProfile(data.user.id);
-    return { user: userProfile, session: data.session };
+      const userProfile = await this.getUserProfile(data.user.id);
+      return { user: userProfile, session: data.session };
+    } catch (error) {
+      console.error('Erro no login:', {
+        message: error.message,
+        details: error,
+        supabaseUrl: import.meta.env.VITE_SUPABASE_URL ? 'Configurado' : 'NÃO configurado',
+        supabaseKey: import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Configurado' : 'NÃO configurado'
+      });
+      throw error;
+    }
   },
 
   async signUp(email, password, userData) {

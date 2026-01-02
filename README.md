@@ -128,9 +128,24 @@ Após o deploy:
 
 ## Resolução de Problemas
 
-### Erro: "API Key Invalid" ou Página em Branco
+### Erro: "API Key Invalid" ao Fazer Login
 
-**Causa:** As variáveis de ambiente não foram configuradas corretamente.
+**Causa Principal:** O URL do Vercel não está autorizado no Supabase (CORS).
+
+**Solução Rápida:**
+
+1. Aceda ao [Dashboard Supabase](https://supabase.com/dashboard) → Projeto `kzvzjrgmqneqygwfihzw`
+2. Vá a **Authentication** → **URL Configuration**
+3. Em **"Site URL"**, adicione: `https://seu-projeto.vercel.app`
+4. Em **"Redirect URLs"**, adicione: `https://seu-projeto.vercel.app/**`
+5. Clique em **Save** e aguarde 1-2 minutos
+6. Teste novamente o login
+
+**Se ainda não funcionar, consulte o guia completo:** [TROUBLESHOOTING_VERCEL.md](./TROUBLESHOOTING_VERCEL.md)
+
+---
+
+### Erro: Variáveis de Ambiente Não Carregadas
 
 **Solução:**
 
@@ -144,7 +159,7 @@ Após o deploy:
 6. Se **JÁ** estiverem: verifique se os valores estão corretos (copie novamente do Passo 3)
 7. Após adicionar/corrigir as variáveis, vá ao separador **"Deployments"**
 8. Clique nos 3 pontos (...) no último deployment
-9. Clique em **"Redeploy"** → Confirme **"Redeploy"**
+9. Clique em **"Redeploy"** → Marque **"Use existing Build Cache"** como **OFF**
 10. Aguarde 2-3 minutos e teste novamente
 
 ### Erro: Página de Login Não Aparece (404 ou Página em Branco)

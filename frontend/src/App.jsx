@@ -75,6 +75,7 @@ const AuthProvider = ({ children }) => {
       setUser(null);
       setShowPasswordChange(false);
       toast.success("Logout efetuado com sucesso");
+      window.location.href = '/login';
     } catch (error) {
       toast.error("Erro ao fazer logout");
     }

@@ -44,18 +44,25 @@ export const authService = {
     if (authError) throw authError;
 
     if (authData.user) {
+      const insertData = {
+        id: authData.user.id,
+        email: userData.email,
+        name: userData.name,
+        role: userData.role || 'vendedor',
+        active: true,
+        must_change_password: userData.must_change_password || false,
+      };
+
+      if (userData.commission_percentage !== undefined) {
+        insertData.commission_percentage = userData.commission_percentage;
+      }
+      if (userData.commission_threshold !== undefined) {
+        insertData.commission_threshold = userData.commission_threshold;
+      }
+
       const { data: profileData, error: profileError } = await supabase
         .from('users')
-        .insert([
-          {
-            id: authData.user.id,
-            email: userData.email,
-            name: userData.name,
-            role: userData.role || 'vendedor',
-            active: true,
-            must_change_password: userData.must_change_password || false,
-          },
-        ])
+        .insert([insertData])
         .select()
         .single();
 

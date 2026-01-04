@@ -17,8 +17,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Loader2, User, FileText, Zap } from "lucide-react";
+import { ArrowLeft, Save, Loader2, User, FileText, Zap, ArrowRight, MapPin } from "lucide-react";
 
 const CATEGORIES = [
   { value: "energia", label: "Energia" },
@@ -28,6 +44,7 @@ const CATEGORIES = [
 
 const SALE_TYPES = [
   { value: "nova_instalacao", label: "Nova Instalação" },
+  { value: "mudanca_casa", label: "Mudança de Casa" },
   { value: "refid", label: "Refid (Renovação)" }
 ];
 
@@ -44,7 +61,7 @@ const ENERGY_TYPE_MAP = {
 };
 
 const POTENCIAS = [
-  "1.15", "2.3", "3.45", "4.6", "5.75", "6.9", "10.35", "13.8", 
+  "1.15", "2.3", "3.45", "4.6", "5.75", "6.9", "10.35", "13.8",
   "17.25", "20.7", "27.6", "34.5", "41.4", "Outra"
 ];
 
@@ -58,12 +75,22 @@ export default function SaleForm() {
   const [searchParams] = useSearchParams();
 
   const [loading, setLoading] = useState(false);
+  const [checkingNIF, setCheckingNIF] = useState(false);
   const [partners, setPartners] = useState([]);
   const [sellers, setSellers] = useState([]);
   const [operators, setOperators] = useState([]);
   const [loadingPartners, setLoadingPartners] = useState(true);
   const [loadingOperators, setLoadingOperators] = useState(false);
-  const [loadingRefidData, setLoadingRefidData] = useState(false);
+
+  const [nifInput, setNifInput] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [previousSales, setPreviousSales] = useState([]);
+  const [showTypeDialog, setShowTypeDialog] = useState(false);
+  const [showAddressDialog, setShowAddressDialog] = useState(false);
+  const [selectedSaleFlow, setSelectedSaleFlow] = useState(null);
+  const [selectedPreviousAddress, setSelectedPreviousAddress] = useState(null);
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
 
   const [formData, setFormData] = useState({
     client_name: "",
@@ -91,11 +118,7 @@ export default function SaleForm() {
   useEffect(() => {
     fetchPartners();
     fetchSellers();
-    const refidFrom = searchParams.get('refid_from');
-    if (refidFrom) {
-      loadRefidData(refidFrom);
-    }
-  }, [searchParams]);
+  }, []);
 
   const fetchPartners = async () => {
     try {
@@ -186,29 +209,128 @@ export default function SaleForm() {
     }
   }, [formData.category, formData.energy_type]);
 
-  const loadRefidData = async (saleId) => {
-    setLoadingRefidData(true);
-    try {
-      const originalSale = await salesService.getSaleById(saleId);
-      setFormData(prev => ({
-        ...prev,
-        client_name: originalSale.client_name || "",
-        client_email: originalSale.client_email || "",
-        client_phone: originalSale.client_phone || "",
-        client_address: originalSale.client_address || "",
-        client_nif: originalSale.client_nif || "",
-        category: originalSale.category || "",
-        sale_type: "refid",
-        partner_id: originalSale.partner_id || "",
-        loyalty_months: originalSale.loyalty_months?.toString() || "",
-      }));
-      toast.success("Dados carregados para venda Refid");
-    } catch (error) {
-      console.error("Error loading refid data:", error);
-      toast.error("Erro ao carregar dados da venda original");
-    } finally {
-      setLoadingRefidData(false);
+  const handleCheckNIF = async () => {
+    if (!nifInput) {
+      toast.error("Insira um NIF");
+      return;
     }
+
+    if (nifInput.length !== 9 || !/^\d+$/.test(nifInput)) {
+      toast.error("O NIF deve ter 9 dígitos numéricos");
+      return;
+    }
+
+    setCheckingNIF(true);
+    try {
+      const sales = await salesService.getSalesByNIF(nifInput);
+      setPreviousSales(sales);
+
+      if (sales.length > 0) {
+        setShowTypeDialog(true);
+      } else {
+        handleChange("client_nif", nifInput);
+        setShowForm(true);
+      }
+    } catch (error) {
+      console.error("Error checking NIF:", error);
+      toast.error("Erro ao verificar NIF");
+    } finally {
+      setCheckingNIF(false);
+    }
+  };
+
+  const handleSaleTypeSelection = (type) => {
+    setSelectedSaleFlow(type);
+    setShowTypeDialog(false);
+
+    if (type === "nova") {
+      handleNovaVenda();
+    } else if (type === "mc" || type === "refid") {
+      setShowAddressDialog(true);
+    }
+  };
+
+  const handleNovaVenda = () => {
+    const latestSale = previousSales[0];
+    setFormData({
+      ...formData,
+      client_name: latestSale.client_name || "",
+      client_email: latestSale.client_email || "",
+      client_phone: latestSale.client_phone || "",
+      client_nif: nifInput,
+      street_address: "",
+      postal_code: "",
+      city: "",
+    });
+    setShowForm(true);
+  };
+
+  const handleMCSelection = async (sale) => {
+    setSelectedPreviousAddress(sale);
+    setShowAddressDialog(false);
+
+    const validSeller = sellers.find(s => s.id === sale.seller_id && s.active);
+
+    setFormData({
+      ...formData,
+      client_name: sale.client_name || "",
+      client_email: sale.client_email || "",
+      client_phone: sale.client_phone || "",
+      client_nif: nifInput,
+      street_address: "",
+      postal_code: "",
+      city: "",
+      category: sale.category || "",
+      sale_type: "mudanca_casa",
+      partner_id: sale.partner_id || "",
+      operator_id: sale.operator_id || "",
+      seller_id: validSeller ? sale.seller_id : "none",
+      energy_type: sale.energy_type || "",
+    });
+
+    try {
+      await salesService.updateSale(sale.id, { loyalty_months: 0 });
+    } catch (error) {
+      console.error("Error updating previous sale loyalty:", error);
+    }
+
+    setShowForm(true);
+  };
+
+  const handleRefidSelection = async (sale) => {
+    setSelectedPreviousAddress(sale);
+    setShowAddressDialog(false);
+
+    const validSeller = sellers.find(s => s.id === sale.seller_id && s.active);
+
+    setFormData({
+      ...formData,
+      client_name: sale.client_name || "",
+      client_email: sale.client_email || "",
+      client_phone: sale.client_phone || "",
+      client_nif: nifInput,
+      street_address: sale.street_address || "",
+      postal_code: sale.postal_code || "",
+      city: sale.city || "",
+      category: sale.category || "",
+      sale_type: "refid",
+      partner_id: sale.partner_id || "",
+      operator_id: sale.operator_id || "",
+      seller_id: validSeller ? sale.seller_id : "none",
+      energy_type: sale.energy_type || "",
+      cpe: sale.cpe || "",
+      potencia: sale.potencia || "",
+      cui: sale.cui || "",
+      escalao: sale.escalao || "",
+    });
+
+    try {
+      await salesService.updateSale(sale.id, { loyalty_months: 0 });
+    } catch (error) {
+      console.error("Error updating previous sale loyalty:", error);
+    }
+
+    setShowForm(true);
   };
 
   const handleChange = (field, value) => {
@@ -218,7 +340,6 @@ export default function SaleForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validation
     if (!formData.client_name || !formData.category || !formData.partner_id) {
       toast.error("Preencha os campos obrigatórios (Nome, Categoria, Parceiro)");
       return;
@@ -254,18 +375,17 @@ export default function SaleForm() {
       return;
     }
 
-    // Energy validation
     if (formData.category === "energia") {
       if (!formData.energy_type) {
         toast.error("Selecione o tipo de energia");
         return;
       }
-      
+
       if ((formData.energy_type === "eletricidade" || formData.energy_type === "dual") && (!formData.cpe || !formData.potencia)) {
         toast.error("CPE e Potência são obrigatórios para eletricidade");
         return;
       }
-      
+
       if ((formData.energy_type === "gas" || formData.energy_type === "dual") && (!formData.cui || !formData.escalao)) {
         toast.error("CUI e Escalão são obrigatórios para gás");
         return;
@@ -300,10 +420,7 @@ export default function SaleForm() {
     }
   };
 
-  // Show sale_type only for energia and telecomunicacoes
   const showSaleType = formData.category === "energia" || formData.category === "telecomunicacoes";
-  
-  // Energy fields
   const showEnergyFields = formData.category === "energia";
   const showElectricityFields = formData.energy_type === "eletricidade" || formData.energy_type === "dual";
   const showGasFields = formData.energy_type === "gas" || formData.energy_type === "dual";
@@ -335,13 +452,178 @@ export default function SaleForm() {
     );
   }
 
+  if (!showForm) {
+    return (
+      <div className="max-w-xl mx-auto space-y-6">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            onClick={() => navigate(-1)}
+            className="text-white/70 hover:text-white"
+          >
+            <ArrowLeft size={20} />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-white font-['Manrope']">Nova Venda</h1>
+            <p className="text-white/50 text-sm mt-1">Insira o NIF do cliente para começar</p>
+          </div>
+        </div>
+
+        <Card className="card-leiritrix">
+          <CardContent className="p-8">
+            <Label htmlFor="nif_input" className="form-label text-lg mb-4 block">NIF do Cliente</Label>
+            <div className="flex gap-3">
+              <Input
+                id="nif_input"
+                value={nifInput}
+                onChange={(e) => setNifInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCheckNIF()}
+                className="form-input text-lg"
+                placeholder="123456789"
+                maxLength={9}
+                autoFocus
+              />
+              <Button
+                onClick={handleCheckNIF}
+                disabled={checkingNIF}
+                className="btn-primary btn-primary-glow px-8"
+              >
+                {checkingNIF ? (
+                  <Loader2 size={20} className="animate-spin" />
+                ) : (
+                  <ArrowRight size={20} />
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Dialog open={showTypeDialog} onOpenChange={setShowTypeDialog}>
+          <DialogContent className="bg-[#082d32] border-white/10 max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-white font-['Manrope'] text-xl">Cliente Existente</DialogTitle>
+              <DialogDescription className="text-white/70">
+                Encontrámos {previousSales.length} venda(s) para este NIF. Que tipo de venda deseja registar?
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 mt-4">
+              <Button
+                onClick={() => handleSaleTypeSelection("nova")}
+                className="w-full bg-[#c8f31d] hover:bg-[#b5db1a] text-[#031819] font-['Manrope'] font-semibold py-6"
+              >
+                Nova Venda
+              </Button>
+              <Button
+                onClick={() => handleSaleTypeSelection("mc")}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-['Manrope'] font-semibold py-6"
+              >
+                MC (Mudança de Casa)
+              </Button>
+              <Button
+                onClick={() => handleSaleTypeSelection("refid")}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-['Manrope'] font-semibold py-6"
+              >
+                Refid (Refidelização)
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showAddressDialog} onOpenChange={setShowAddressDialog}>
+          <DialogContent className="bg-[#082d32] border-white/10 max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-white font-['Manrope'] text-xl flex items-center gap-2">
+                <MapPin className="text-[#c8f31d]" size={24} />
+                Selecione a Morada Original
+              </DialogTitle>
+              <DialogDescription className="text-white/70">
+                Escolha a morada da venda anterior que deseja {selectedSaleFlow === "mc" ? "mudar" : "refidelizar"}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 mt-4">
+              {previousSales.map((sale) => (
+                <Card
+                  key={sale.id}
+                  className="card-leiritrix cursor-pointer hover:border-[#c8f31d]/50 transition-colors"
+                  onClick={() => selectedSaleFlow === "mc" ? handleMCSelection(sale) : handleRefidSelection(sale)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-white font-['Manrope'] font-semibold">
+                          {sale.street_address}
+                        </p>
+                        <p className="text-white/60 text-sm">
+                          {sale.postal_code} {sale.city}
+                        </p>
+                        <div className="flex gap-4 mt-2 text-xs text-white/50">
+                          <span>{sale.operators?.name || "Sem operadora"}</span>
+                          <span>{sale.category}</span>
+                          {sale.loyalty_months > 0 && (
+                            <span className="text-orange-400">
+                              {sale.loyalty_months} meses fidelização
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <ArrowRight size={20} className="text-[#c8f31d]" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <AlertDialog open={showAlert} onOpenChange={setShowAlert}>
+          <AlertDialogContent className="bg-[#082d32] border-white/10">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white font-['Manrope']">Atenção</AlertDialogTitle>
+              <AlertDialogDescription className="text-white/70">
+                {alertMessage}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="bg-white/10 text-white hover:bg-white/20">OK</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto space-y-6" data-testid="sale-form-page">
-      {/* Header */}
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
-          onClick={() => navigate(-1)}
+          onClick={() => {
+            setShowForm(false);
+            setNifInput("");
+            setPreviousSales([]);
+            setFormData({
+              client_name: "",
+              client_email: "",
+              client_phone: "",
+              client_nif: "",
+              street_address: "",
+              postal_code: "",
+              city: "",
+              category: "",
+              sale_type: "",
+              partner_id: "",
+              operator_id: "",
+              seller_id: "none",
+              contract_value: "",
+              loyalty_months: "",
+              notes: "",
+              energy_type: "",
+              cpe: "",
+              potencia: "",
+              cui: "",
+              escalao: ""
+            });
+          }}
           className="text-white/70 hover:text-white"
           data-testid="back-btn"
         >
@@ -349,13 +631,11 @@ export default function SaleForm() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold text-white font-['Manrope']">Nova Venda</h1>
-          <p className="text-white/50 text-sm mt-1">Preencha os dados para registar uma nova venda</p>
+          <p className="text-white/50 text-sm mt-1">NIF: {formData.client_nif}</p>
         </div>
       </div>
 
-      {/* Form */}
       <form onSubmit={handleSubmit} data-testid="sale-form">
-        {/* Client Data */}
         <Card className="card-leiritrix">
           <CardHeader className="border-b border-white/5 pb-4">
             <CardTitle className="text-white font-['Manrope'] text-lg flex items-center gap-2">
@@ -376,22 +656,9 @@ export default function SaleForm() {
                   data-testid="client-name-input"
                 />
               </div>
-              
-              <div>
-                <Label htmlFor="client_nif" className="form-label">NIF *</Label>
-                <Input
-                  id="client_nif"
-                  value={formData.client_nif}
-                  onChange={(e) => handleChange("client_nif", e.target.value)}
-                  className="form-input"
-                  placeholder="123456789"
-                  maxLength={9}
-                  data-testid="client-nif-input"
-                />
-              </div>
 
               <div>
-                <Label htmlFor="client_email" className="form-label">Email *</Label>
+                <Label htmlFor="client_email" className="form-label">Email</Label>
                 <Input
                   id="client_email"
                   type="email"
@@ -404,7 +671,7 @@ export default function SaleForm() {
               </div>
 
               <div>
-                <Label htmlFor="client_phone" className="form-label">Telefone *</Label>
+                <Label htmlFor="client_phone" className="form-label">Telefone</Label>
                 <Input
                   id="client_phone"
                   value={formData.client_phone}
@@ -455,7 +722,6 @@ export default function SaleForm() {
           </CardContent>
         </Card>
 
-        {/* Contract Data */}
         <Card className="card-leiritrix mt-6">
           <CardHeader className="border-b border-white/5 pb-4">
             <CardTitle className="text-white font-['Manrope'] text-lg flex items-center gap-2">
@@ -497,7 +763,6 @@ export default function SaleForm() {
                 </Select>
               </div>
 
-              {/* Energy Type - show immediately after selecting Energia */}
               {showEnergyFields && (
                 <div className="md:col-span-2 p-4 bg-[#c8f31d]/5 border border-[#c8f31d]/20 rounded-lg">
                   <Label htmlFor="energy_type" className="form-label flex items-center gap-2">
@@ -520,7 +785,7 @@ export default function SaleForm() {
               )}
 
               {showSaleType && (
-                <div>
+                <div className="md:col-span-2">
                   <Label htmlFor="sale_type" className="form-label">Tipo de Venda</Label>
                   <Select value={formData.sale_type} onValueChange={(v) => handleChange("sale_type", v)}>
                     <SelectTrigger className="form-input" data-testid="sale-type-select">
@@ -567,7 +832,7 @@ export default function SaleForm() {
                         : !formData.category
                         ? "Selecione primeiro a categoria"
                         : (formData.category === 'energia' && !formData.energy_type)
-                        ? "↑ Selecione o tipo de energia acima"
+                        ? "Selecione o tipo de energia acima"
                         : loadingOperators
                         ? "A carregar operadoras..."
                         : getFilteredOperators().length === 0
@@ -585,7 +850,7 @@ export default function SaleForm() {
                 </Select>
                 {formData.partner_id && formData.category && (formData.category !== 'energia' || formData.energy_type) && getFilteredOperators().length === 0 && !loadingOperators && (
                   <p className="text-orange-400 text-xs mt-1">
-                    Este parceiro não tem operadoras para esta categoria. Adicione uma operadora na página de Operadoras.
+                    Este parceiro não tem operadoras para esta categoria.
                   </p>
                 )}
               </div>
@@ -611,7 +876,6 @@ export default function SaleForm() {
                 </div>
               )}
 
-              {/* Mensalidade Contratada - apenas para Telecomunicações */}
               {formData.category === "telecomunicacoes" && (
                 <div>
                   <Label htmlFor="contract_value" className="form-label">Mensalidade Contratada (€)</Label>
@@ -646,7 +910,6 @@ export default function SaleForm() {
           </CardContent>
         </Card>
 
-        {/* Energy Specific Fields */}
         {showEnergyFields && formData.energy_type && (
           <Card className="card-leiritrix mt-6">
             <CardHeader className="border-b border-white/5 pb-4">
@@ -657,7 +920,6 @@ export default function SaleForm() {
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Electricity fields */}
                 {showElectricityFields && (
                   <>
                     <div>
@@ -689,7 +951,6 @@ export default function SaleForm() {
                   </>
                 )}
 
-                {/* Gas fields */}
                 {showGasFields && (
                   <>
                     <div>
@@ -725,7 +986,6 @@ export default function SaleForm() {
           </Card>
         )}
 
-        {/* Notes */}
         <Card className="card-leiritrix mt-6">
           <CardContent className="pt-6">
             <Label htmlFor="notes" className="form-label">Notas</Label>
@@ -740,12 +1000,15 @@ export default function SaleForm() {
           </CardContent>
         </Card>
 
-        {/* Actions */}
         <div className="flex justify-end gap-4 mt-6">
           <Button
             type="button"
             variant="ghost"
-            onClick={() => navigate(-1)}
+            onClick={() => {
+              setShowForm(false);
+              setNifInput("");
+              setPreviousSales([]);
+            }}
             className="btn-secondary"
             data-testid="cancel-btn"
           >
@@ -771,6 +1034,20 @@ export default function SaleForm() {
           </Button>
         </div>
       </form>
+
+      <AlertDialog open={showAlert} onOpenChange={setShowAlert}>
+        <AlertDialogContent className="bg-[#082d32] border-white/10">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white font-['Manrope']">Atenção</AlertDialogTitle>
+            <AlertDialogDescription className="text-white/70">
+              {alertMessage}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-white/10 text-white hover:bg-white/20">OK</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

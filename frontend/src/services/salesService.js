@@ -165,4 +165,21 @@ export const salesService = {
 
     return stats;
   },
+
+  async getSalesByNIF(nif) {
+    const { data, error } = await supabase
+      .from('sales')
+      .select(`
+        *,
+        operators:operator_id (
+          id,
+          name
+        )
+      `)
+      .eq('client_nif', nif)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  },
 };

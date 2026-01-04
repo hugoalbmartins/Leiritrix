@@ -313,40 +313,30 @@ export default function Dashboard() {
   return (
     <div className="space-y-6" data-testid="dashboard">
       {/* Month/Year Filter */}
-      <Card className="card-leiritrix">
-        <CardContent className="p-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Calendar className="text-[#c8f31d]" size={20} />
-              <span className="text-white font-['Manrope'] font-medium">Período:</span>
-            </div>
-            <div className="flex gap-3">
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                className="bg-[#082d32] border border-white/10 text-white px-4 py-2 rounded-lg focus:outline-none focus:border-[#c8f31d] transition-colors font-['Manrope']"
-              >
-                {months.map((month) => (
-                  <option key={month.value} value={month.value}>
-                    {month.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                className="bg-[#082d32] border border-white/10 text-white px-4 py-2 rounded-lg focus:outline-none focus:border-[#c8f31d] transition-colors font-['Manrope']"
-              >
-                {years.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex justify-end items-center gap-2 mb-2">
+        <select
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+          className="bg-[#082d32]/50 border border-white/10 text-white text-sm px-3 py-1.5 rounded focus:outline-none focus:border-[#c8f31d]/50 transition-colors font-['Manrope']"
+        >
+          {months.map((month) => (
+            <option key={month.value} value={month.value}>
+              {month.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={selectedYear}
+          onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+          className="bg-[#082d32]/50 border border-white/10 text-white text-sm px-3 py-1.5 rounded focus:outline-none focus:border-[#c8f31d]/50 transition-colors font-['Manrope']"
+        >
+          {years.map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {/* Metrics Grid - Main KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

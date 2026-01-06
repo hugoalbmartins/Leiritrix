@@ -17,6 +17,8 @@ import Reports from "@/pages/Reports";
 import Users from "@/pages/Users";
 import Partners from "@/pages/Partners";
 import Operators from "@/pages/Operators";
+import CommissionSettings from "@/pages/CommissionSettings";
+import CommissionWizard from "@/pages/CommissionWizard";
 import Layout from "@/components/Layout";
 
 // Auth Context
@@ -190,6 +192,21 @@ function AppRoutes() {
         <Route path="users" element={
           <ProtectedRoute requireAdmin>
             <Users />
+          </ProtectedRoute>
+        } />
+        <Route path="settings/commissions" element={
+          <ProtectedRoute requireAdmin>
+            <CommissionSettings />
+          </ProtectedRoute>
+        } />
+        <Route path="settings/commissions/new" element={
+          <ProtectedRoute requireAdmin>
+            <CommissionWizard />
+          </ProtectedRoute>
+        } />
+        <Route path="settings/commissions/:id" element={
+          <ProtectedRoute requireAdmin>
+            <CommissionWizard />
           </ProtectedRoute>
         } />
       </Route>

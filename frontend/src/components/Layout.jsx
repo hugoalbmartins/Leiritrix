@@ -11,7 +11,8 @@ import {
   X,
   PlusCircle,
   Building2,
-  Radio
+  Radio,
+  Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import NotificationBell from "@/components/NotificationBell";
@@ -31,6 +32,7 @@ export const Layout = () => {
     { name: "Operadoras", href: "/operators", icon: Radio, show: isAdminOrBackoffice },
     { name: "Relatórios", href: "/reports", icon: FileText, show: isAdminOrBackoffice },
     { name: "Utilizadores", href: "/users", icon: Users, show: isAdmin },
+    { name: "Comissões", href: "/settings/commissions", icon: Settings, show: isAdmin },
   ];
 
   const isActive = (href) => {

@@ -245,7 +245,7 @@ export default function Sales() {
                 <th>Valor</th>
                 <th>Comissão</th>
                 <th>Estado</th>
-                <th>Data</th>
+                <th>Data de Venda</th>
                 <th className="text-right">Ações</th>
               </tr>
             </thead>
@@ -298,7 +298,7 @@ export default function Sales() {
                         </Badge>
                       </td>
                       <td className="text-white/60 text-sm">
-                        {new Date(sale.created_at).toLocaleDateString('pt-PT')}
+                        {new Date(sale.sale_date || sale.created_at).toLocaleDateString('pt-PT')}
                       </td>
                       <td>
                         <div className="flex items-center justify-end gap-1">

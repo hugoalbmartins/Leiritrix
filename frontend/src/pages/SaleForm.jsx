@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DateSelect } from "@/components/ui/date-select";
 import {
   Select,
   SelectContent,
@@ -112,7 +113,8 @@ export default function SaleForm() {
     cpe: "",
     potencia: "",
     cui: "",
-    escalao: ""
+    escalao: "",
+    sale_date: new Date()
   });
 
   useEffect(() => {
@@ -406,7 +408,8 @@ export default function SaleForm() {
         cpe: formData.cpe || null,
         potencia: formData.potencia || null,
         cui: formData.cui || null,
-        escalao: formData.escalao || null
+        escalao: formData.escalao || null,
+        sale_date: formData.sale_date ? formData.sale_date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
       };
 
       await salesService.createSale(payload);
@@ -621,7 +624,8 @@ export default function SaleForm() {
               cpe: "",
               potencia: "",
               cui: "",
-              escalao: ""
+              escalao: "",
+              sale_date: new Date()
             });
           }}
           className="text-white/70 hover:text-white"
@@ -731,6 +735,20 @@ export default function SaleForm() {
           </CardHeader>
           <CardContent className="pt-6 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="md:col-span-2">
+                <Label htmlFor="sale_date" className="form-label">Data de Venda *</Label>
+                <DateSelect
+                  value={formData.sale_date}
+                  onChange={(date) => handleChange("sale_date", date)}
+                  placeholder="Selecionar data"
+                  maxDate={new Date()}
+                  data-testid="sale-date-select"
+                />
+                <p className="text-white/40 text-xs mt-1">
+                  Esta data será usada para contabilizar comissões e mensalidades no respetivo mês
+                </p>
+              </div>
+
               <div className="md:col-span-2">
                 <Label htmlFor="category" className="form-label">Categoria *</Label>
                 <Select

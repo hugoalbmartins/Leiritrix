@@ -79,6 +79,7 @@ export default function SaleDetail({ editMode = false }) {
 
   const [editStatus, setEditStatus] = useState("");
   const [editActiveDate, setEditActiveDate] = useState(null);
+  const [editSaleDate, setEditSaleDate] = useState(null);
   const [editNotes, setEditNotes] = useState("");
   const [editReq, setEditReq] = useState("");
   const [editCommissionSeller, setEditCommissionSeller] = useState("");
@@ -99,6 +100,9 @@ export default function SaleDetail({ editMode = false }) {
       if (saleData.active_date) {
         setEditActiveDate(new Date(saleData.active_date));
       }
+      if (saleData.sale_date) {
+        setEditSaleDate(new Date(saleData.sale_date));
+      }
     } catch (error) {
       toast.error("Erro ao carregar venda");
       navigate("/sales");
@@ -118,6 +122,7 @@ export default function SaleDetail({ editMode = false }) {
         status: editStatus,
         notes: editNotes,
         active_date: editActiveDate ? editActiveDate.toISOString() : null,
+        sale_date: editSaleDate ? editSaleDate.toISOString().split('T')[0] : null,
         req: sale.category === "telecomunicacoes" ? editReq : null
       };
 
@@ -295,6 +300,20 @@ export default function SaleDetail({ editMode = false }) {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div>
+                <Label className="form-label">Data de Venda</Label>
+                <DateSelect
+                  value={editSaleDate}
+                  onChange={setEditSaleDate}
+                  placeholder="Selecionar data"
+                  maxDate={new Date()}
+                  data-testid="edit-sale-date"
+                />
+                <p className="text-white/40 text-xs mt-1">
+                  Data usada para contabilização mensal
+                </p>
               </div>
 
               <div>
@@ -532,6 +551,14 @@ export default function SaleDetail({ editMode = false }) {
         </CardHeader>
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div>
+              <p className="text-white/50 text-sm mb-1 flex items-center gap-1">
+                <CalendarIcon size={14} /> Data de Venda
+              </p>
+              <p className="text-white">
+                {sale.sale_date ? new Date(sale.sale_date).toLocaleDateString('pt-PT') : "-"}
+              </p>
+            </div>
             <div>
               <p className="text-white/50 text-sm mb-1">Categoria</p>
               <div className="flex items-center gap-2">

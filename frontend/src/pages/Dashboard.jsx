@@ -104,7 +104,7 @@ export default function Dashboard() {
       const lastYearSameMonthSales = [];
 
       sales.forEach(sale => {
-        const saleDate = new Date(sale.created_at);
+        const saleDate = new Date(sale.sale_date || sale.created_at);
         const saleYear = saleDate.getFullYear();
         const saleMonth = saleDate.getMonth();
 
@@ -125,8 +125,8 @@ export default function Dashboard() {
 
       const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
       const yoyData = monthNames.map((month, index) => {
-        const currentYearMonthSales = currentYearSales.filter(s => new Date(s.created_at).getMonth() === index);
-        const lastYearMonthSales = lastYearSales.filter(s => new Date(s.created_at).getMonth() === index);
+        const currentYearMonthSales = currentYearSales.filter(s => new Date(s.sale_date || s.created_at).getMonth() === index);
+        const lastYearMonthSales = lastYearSales.filter(s => new Date(s.sale_date || s.created_at).getMonth() === index);
 
         return {
           month,
@@ -241,7 +241,7 @@ export default function Dashboard() {
           otherSale.sale_type === 'refid' &&
           otherSale.client_name === sale.client_name &&
           otherSale.client_address === sale.client_address &&
-          new Date(otherSale.created_at) > new Date(sale.created_at)
+          new Date(otherSale.sale_date || otherSale.created_at) > new Date(sale.sale_date || sale.created_at)
         );
 
         return !hasRefidRenewal;

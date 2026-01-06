@@ -72,10 +72,10 @@ export default function Reports() {
       let salesData = await salesService.getSales();
 
       if (startDate) {
-        salesData = salesData.filter(s => new Date(s.created_at) >= startDate);
+        salesData = salesData.filter(s => new Date(s.sale_date || s.created_at) >= startDate);
       }
       if (endDate) {
-        salesData = salesData.filter(s => new Date(s.created_at) <= endDate);
+        salesData = salesData.filter(s => new Date(s.sale_date || s.created_at) <= endDate);
       }
       if (category && category !== "all") {
         salesData = salesData.filter(s => s.category === category);
@@ -124,8 +124,8 @@ export default function Reports() {
     }
 
     const headers = [
-      "Cliente", "NIF", "Categoria", "Tipo", "Parceiro", 
-      "Valor Contrato", "Comissão", "Estado", "Vendedor", "Data"
+      "Cliente", "NIF", "Categoria", "Tipo", "Parceiro",
+      "Valor Contrato", "Comissão", "Estado", "Vendedor", "Data de Venda"
     ];
 
     const rows = report.sales.map(sale => [
@@ -138,7 +138,7 @@ export default function Reports() {
       sale.commission || "",
       STATUS_MAP[sale.status]?.label || sale.status,
       sale.seller_name,
-      new Date(sale.created_at).toLocaleDateString('pt-PT')
+      new Date(sale.sale_date || sale.created_at).toLocaleDateString('pt-PT')
     ]);
 
     const csvContent = [

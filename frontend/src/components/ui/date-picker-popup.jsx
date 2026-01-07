@@ -100,6 +100,14 @@ export function DatePickerPopup({ value, onChange, className, placeholder = "Sel
            date1.getFullYear() === date2.getFullYear();
   };
 
+  const isFutureDate = (date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const compareDate = new Date(date);
+    compareDate.setHours(0, 0, 0, 0);
+    return compareDate > today;
+  };
+
   const formatDate = (date) => {
     if (!date) return "";
     const day = date.getDate().toString().padStart(2, "0");
@@ -206,15 +214,19 @@ export function DatePickerPopup({ value, onChange, className, placeholder = "Sel
                   const currentDate = new Date(viewYear, viewMonth, day);
                   const isSelected = isSameDay(currentDate, tempDate);
                   const isToday = isSameDay(currentDate, new Date());
+                  const isFuture = isFutureDate(currentDate);
 
                   return (
                     <button
                       key={day}
                       type="button"
-                      onClick={() => handleDayClick(day)}
+                      onClick={() => !isFuture && handleDayClick(day)}
+                      disabled={isFuture}
                       className={`
                         aspect-square rounded-md text-sm transition-colors
-                        ${isSelected
+                        ${isFuture
+                          ? 'text-white/20 cursor-not-allowed'
+                          : isSelected
                           ? 'bg-[#c8f31d] text-[#082d32] font-bold'
                           : isToday
                           ? 'bg-white/10 text-white border border-[#c8f31d]'

@@ -75,20 +75,26 @@ export default function CommissionWizard() {
   }, [id]);
 
   useEffect(() => {
-    if (operatorId) {
+    if (operatorId && operators.length > 0) {
       fetchPartnersByOperator(operatorId);
       fetchOperatorDetails(operatorId);
-    } else {
+    } else if (!operatorId) {
       setPartners([]);
       setPartnerId("all");
       setClientCategories([]);
       setSelectedOperator(null);
     }
-  }, [operatorId]);
+  }, [operatorId, operators]);
 
   const fetchOperatorDetails = async (opId) => {
     try {
-      const operator = operators.find(o => o.id === opId);
+      let operator = operators.find(o => o.id === opId);
+
+      if (!operator) {
+        const operatorsData = await operatorsService.getOperators();
+        operator = operatorsData.find(o => o.id === opId);
+      }
+
       setSelectedOperator(operator);
 
       if (operator?.has_client_categories) {

@@ -3,6 +3,7 @@ import { useAuth } from "@/App";
 import { Link } from "react-router-dom";
 import { salesService } from "@/services/salesService";
 import { partnersService } from "@/services/partnersService";
+import { operatorsService } from "@/services/operatorsService";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,6 @@ import {
 } from "@/components/ui/select";
 import { DateSelect } from "@/components/ui/date-select";
 import {
-  Search,
   Plus,
   Eye,
   Edit2,
@@ -61,18 +61,29 @@ const TYPE_MAP = {
   refid: "Refid"
 };
 
+const removeAccents = (str) => {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+};
+
 export default function Sales() {
   const { user, isAdminOrBackoffice } = useAuth();
   const [sales, setSales] = useState([]);
+  const [allSales, setAllSales] = useState([]);
   const [partners, setPartners] = useState([]);
+  const [operators, setOperators] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+
+  const [searchType, setSearchType] = useState("");
+  const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [partnerFilter, setPartnerFilter] = useState("");
-  const [dateType, setDateType] = useState("");
-  const [dateFrom, setDateFrom] = useState(null);
-  const [dateTo, setDateTo] = useState(null);
+  const [operatorFilter, setOperatorFilter] = useState("");
+  const [saleDateFrom, setSaleDateFrom] = useState(null);
+  const [saleDateTo, setSaleDateTo] = useState(null);
+  const [activeDateFrom, setActiveDateFrom] = useState(null);
+  const [activeDateTo, setActiveDateTo] = useState(null);
+
   const [showFilters, setShowFilters] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -83,39 +94,66 @@ export default function Sales() {
 
   const fetchData = useCallback(async () => {
     try {
-      const partnersData = await partnersService.getPartners();
+      const [partnersData, operatorsData, salesData] = await Promise.all([
+        partnersService.getPartners(),
+        operatorsService.getOperators(),
+        salesService.getSales(null, {})
+      ]);
+
       setPartners(partnersData);
-
-      const filters = {};
-      if (statusFilter && statusFilter !== "all") filters.status = statusFilter;
-      if (categoryFilter && categoryFilter !== "all") filters.category = categoryFilter;
-      if (partnerFilter && partnerFilter !== "all") filters.partnerId = partnerFilter;
-
-      const salesData = await salesService.getSales(null, filters);
+      setOperators(operatorsData);
+      setAllSales(salesData);
 
       let filtered = salesData;
 
-      if (search) {
-        filtered = filtered.filter(sale =>
-          sale.client_name?.toLowerCase().includes(search.toLowerCase()) ||
-          sale.client_email?.toLowerCase().includes(search.toLowerCase()) ||
-          sale.client_phone?.includes(search)
-        );
+      if (searchType && searchText) {
+        if (searchType === "nif") {
+          filtered = filtered.filter(sale =>
+            sale.client_nif?.includes(searchText)
+          );
+        } else if (searchType === "name") {
+          const searchNormalized = removeAccents(searchText.toLowerCase());
+          filtered = filtered.filter(sale => {
+            const nameNormalized = removeAccents(sale.client_name?.toLowerCase() || "");
+            return nameNormalized.includes(searchNormalized);
+          });
+        }
       }
 
-      if (dateType && (dateFrom || dateTo)) {
-        const dateField = dateType === 'sale_date' ? 'sale_date' : 'active_date';
-        const endDate = dateTo || new Date();
+      if (statusFilter && statusFilter !== "all") {
+        filtered = filtered.filter(sale => sale.status === statusFilter);
+      }
 
+      if (categoryFilter && categoryFilter !== "all") {
+        filtered = filtered.filter(sale => sale.category === categoryFilter);
+      }
+
+      if (partnerFilter && partnerFilter !== "all") {
+        filtered = filtered.filter(sale => sale.partner_id === partnerFilter);
+      }
+
+      if (operatorFilter && operatorFilter !== "all") {
+        filtered = filtered.filter(sale => sale.operator_id === operatorFilter);
+      }
+
+      if (saleDateFrom || saleDateTo) {
+        const endDate = saleDateTo || new Date();
         filtered = filtered.filter(sale => {
-          const saleDate = sale[dateField];
-          if (!saleDate) return false;
-
-          const date = new Date(saleDate);
-
-          if (dateFrom && date < dateFrom) return false;
+          if (!sale.sale_date) return false;
+          const date = new Date(sale.sale_date);
+          if (saleDateFrom && date < saleDateFrom) return false;
           if (date > endDate) return false;
+          return true;
+        });
+      }
 
+      if (activeDateFrom || activeDateTo) {
+        const endDate = activeDateTo || new Date();
+        filtered = filtered.filter(sale => {
+          if (!sale.active_date) return false;
+          const date = new Date(sale.active_date);
+          if (activeDateFrom && date < activeDateFrom) return false;
+          if (date > endDate) return false;
           return true;
         });
       }
@@ -127,16 +165,24 @@ export default function Sales() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, categoryFilter, partnerFilter, search, dateType, dateFrom, dateTo]);
+  }, [searchType, searchText, statusFilter, categoryFilter, partnerFilter, operatorFilter, saleDateFrom, saleDateTo, activeDateFrom, activeDateTo]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    fetchData();
-  };
+  const filteredOperators = categoryFilter && categoryFilter !== "all"
+    ? operators.filter(op => op.category === categoryFilter)
+    : operators;
+
+  useEffect(() => {
+    if (categoryFilter && categoryFilter !== "all" && operatorFilter && operatorFilter !== "all") {
+      const selectedOperator = operators.find(op => op.id === operatorFilter);
+      if (selectedOperator && selectedOperator.category !== categoryFilter) {
+        setOperatorFilter("");
+      }
+    }
+  }, [categoryFilter, operatorFilter, operators]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -153,13 +199,16 @@ export default function Sales() {
   };
 
   const clearFilters = () => {
+    setSearchType("");
+    setSearchText("");
     setStatusFilter("");
     setCategoryFilter("");
     setPartnerFilter("");
-    setSearch("");
-    setDateType("");
-    setDateFrom(null);
-    setDateTo(null);
+    setOperatorFilter("");
+    setSaleDateFrom(null);
+    setSaleDateTo(null);
+    setActiveDateFrom(null);
+    setActiveDateTo(null);
     setCurrentPage(1);
   };
 
@@ -210,7 +259,7 @@ export default function Sales() {
   const endIndex = startIndex + ITEMS_PER_PAGE;
   const paginatedSales = sortedSales.slice(startIndex, endIndex);
 
-  const hasFilters = statusFilter || categoryFilter || partnerFilter || search || dateType || dateFrom || dateTo;
+  const hasFilters = searchType || searchText || statusFilter || categoryFilter || partnerFilter || operatorFilter || saleDateFrom || saleDateTo || activeDateFrom || activeDateTo;
 
   if (loading) {
     return (
@@ -236,48 +285,76 @@ export default function Sales() {
         </Link>
       </div>
 
-      {/* Filters - Compact Design */}
+      {/* Filters */}
       <div className="space-y-3">
-        {/* Main Search Bar */}
-        <div className="flex gap-2">
-          <form onSubmit={handleSearch} className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={16} />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Pesquisar cliente, NIF, email ou telefone..."
-                className="form-input pl-9 h-10 text-sm"
-                data-testid="search-input"
-              />
-            </div>
-          </form>
-
+        <div className="flex gap-2 items-center">
           <Button
             onClick={() => setShowFilters(!showFilters)}
             variant="outline"
-            className="bg-white/5 border-white/10 text-white hover:bg-white/10 h-10 px-3"
+            className="bg-white/5 border-white/10 text-white hover:bg-white/10 h-10 px-4"
           >
-            <Filter size={16} />
+            <Filter size={16} className="mr-2" />
+            Filtros
           </Button>
 
           {hasFilters && (
-            <Button
-              onClick={clearFilters}
-              variant="outline"
-              className="bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white h-10 px-3"
-              data-testid="clear-filters-btn"
-            >
-              <X size={16} />
-            </Button>
+            <>
+              <Button
+                onClick={clearFilters}
+                variant="outline"
+                className="bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white h-10 px-4"
+                data-testid="clear-filters-btn"
+              >
+                <X size={16} className="mr-2" />
+                Limpar
+              </Button>
+              <p className="text-white/50 text-sm">
+                {sales.length} resultado{sales.length !== 1 ? 's' : ''}
+              </p>
+            </>
           )}
         </div>
 
-        {/* Advanced Filters - Collapsible */}
         {showFilters && (
           <Card className="card-leiritrix border-[#c8f31d]/20">
-            <CardContent className="p-4 space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <CardContent className="p-4 space-y-4">
+              {/* Pesquisa por NIF ou Nome */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div>
+                  <label className="text-xs text-white/50 mb-1 block">Tipo de Pesquisa</label>
+                  <Select value={searchType} onValueChange={(value) => {
+                    setSearchType(value);
+                    setSearchText("");
+                  }}>
+                    <SelectTrigger className="form-input h-9 text-sm">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#082d32] border-white/10 z-50">
+                      <SelectItem value="" className="text-white hover:bg-white/10">Nenhum</SelectItem>
+                      <SelectItem value="nif" className="text-white hover:bg-white/10">NIF</SelectItem>
+                      <SelectItem value="name" className="text-white hover:bg-white/10">Nome</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {searchType && (
+                  <div className="md:col-span-3">
+                    <label className="text-xs text-white/50 mb-1 block">
+                      {searchType === "nif" ? "NIF do Cliente" : "Nome do Cliente"}
+                    </label>
+                    <Input
+                      value={searchText}
+                      onChange={(e) => setSearchText(e.target.value)}
+                      placeholder={searchType === "nif" ? "Digite o NIF..." : "Digite o nome (parcial ou completo)..."}
+                      className="form-input h-9 text-sm"
+                      data-testid="search-text-input"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Filtros: Estado, Categoria, Operadora, Parceiro */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div>
                   <label className="text-xs text-white/50 mb-1 block">Estado</label>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -313,6 +390,23 @@ export default function Sales() {
                 </div>
 
                 <div>
+                  <label className="text-xs text-white/50 mb-1 block">Operadora</label>
+                  <Select value={operatorFilter} onValueChange={setOperatorFilter}>
+                    <SelectTrigger className="form-input h-9 text-sm" data-testid="operator-filter">
+                      <SelectValue placeholder="Todas" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#082d32] border-white/10 z-50 max-h-60">
+                      <SelectItem value="all" className="text-white hover:bg-white/10">Todas</SelectItem>
+                      {filteredOperators.map((operator) => (
+                        <SelectItem key={operator.id} value={operator.id} className="text-white hover:bg-white/10 text-sm">
+                          {operator.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
                   <label className="text-xs text-white/50 mb-1 block">Parceiro</label>
                   <Select value={partnerFilter} onValueChange={setPartnerFilter}>
                     <SelectTrigger className="form-input h-9 text-sm" data-testid="partner-filter">
@@ -330,47 +424,55 @@ export default function Sales() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Filtros de Data */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-white/50 mb-2 block">Tipo de Data</label>
-                  <Select value={dateType} onValueChange={(value) => {
-                    setDateType(value);
-                    setDateFrom(null);
-                    setDateTo(null);
-                  }}>
-                    <SelectTrigger className="h-10 bg-white/5 border-white/10 text-white">
-                      <SelectValue placeholder="Selecione o tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="sale_date">Data de Venda</SelectItem>
-                      <SelectItem value="active_date">Data de Ativação</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <label className="text-xs text-white/50 mb-2 block">Data de Venda</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-white/40 mb-1 block">De</label>
+                      <DateSelect
+                        value={saleDateFrom}
+                        onChange={setSaleDateFrom}
+                        placeholder="Data inicial"
+                        className="h-9 text-sm w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-white/40 mb-1 block">Até</label>
+                      <DateSelect
+                        value={saleDateTo}
+                        onChange={setSaleDateTo}
+                        placeholder="Hoje"
+                        className="h-9 text-sm w-full"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                {dateType && (
-                  <>
+                <div>
+                  <label className="text-xs text-white/50 mb-2 block">Data de Ativação</label>
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="text-xs text-white/50 mb-2 block">De</label>
+                      <label className="text-xs text-white/40 mb-1 block">De</label>
                       <DateSelect
-                        value={dateFrom}
-                        onChange={setDateFrom}
+                        value={activeDateFrom}
+                        onChange={setActiveDateFrom}
                         placeholder="Data inicial"
-                        className="h-10 text-sm w-full"
+                        className="h-9 text-sm w-full"
                       />
                     </div>
-
                     <div>
-                      <label className="text-xs text-white/50 mb-2 block">Até</label>
+                      <label className="text-xs text-white/40 mb-1 block">Até</label>
                       <DateSelect
-                        value={dateTo}
-                        onChange={setDateTo}
+                        value={activeDateTo}
+                        onChange={setActiveDateTo}
                         placeholder="Hoje"
-                        className="h-10 text-sm w-full"
+                        className="h-9 text-sm w-full"
                       />
                     </div>
-                  </>
-                )}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

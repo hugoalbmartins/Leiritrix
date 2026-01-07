@@ -541,6 +541,9 @@ export default function CommissionWizard() {
                                 <SelectItem value="all" className="text-white hover:bg-white/10">
                                   Todos
                                 </SelectItem>
+                                <SelectItem value="novo" className="text-white hover:bg-white/10">
+                                  Novo
+                                </SelectItem>
                                 <SelectItem value="cliente_carteira" className="text-white hover:bg-white/10">
                                   Cliente de Carteira
                                 </SelectItem>

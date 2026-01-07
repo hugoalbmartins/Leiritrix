@@ -1150,6 +1150,9 @@ export default function SaleForm() {
                       <SelectValue placeholder="Selecione o encarteiramento" />
                     </SelectTrigger>
                     <SelectContent className="bg-[#082d32] border-white/10">
+                      <SelectItem value="novo" className="text-white hover:bg-white/10">
+                        Novo
+                      </SelectItem>
                       <SelectItem value="cliente_carteira" className="text-white hover:bg-white/10">
                         Cliente de Carteira
                       </SelectItem>

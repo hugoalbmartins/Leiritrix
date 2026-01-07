@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/App";
 import { operatorsService } from "@/services/operatorsService";
 import { operatorClientCategoriesService } from "@/services/operatorClientCategoriesService";
+import { commissionsService } from "@/services/commissionsService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,16 @@ const CATEGORY_OPTIONS = [
   { value: "paineis_solares", label: "Painéis Solares", icon: Sun }
 ];
 
+const SALE_TYPES = [
+  { value: "NI", label: "NI (Nova Instalação)" },
+  { value: "MC", label: "MC (Mudança de Casa)" },
+  { value: "Refid", label: "Refid (Refidelização)" },
+  { value: "Refid_Acrescimo", label: "Refid com Acréscimo" },
+  { value: "Refid_Decrescimo", label: "Refid com Decréscimo" },
+  { value: "Up_sell", label: "Up-sell" },
+  { value: "Cross_sell", label: "Cross-sell" }
+];
+
 const getCategoryIcon = (category) => {
   const option = CATEGORY_OPTIONS.find(opt => opt.value === category);
   return option ? option.icon : Radio;
@@ -72,7 +83,8 @@ export default function Operators() {
     name: "",
     categories: [],
     commission_visible_to_bo: false,
-    has_client_categories: false
+    has_client_categories: false,
+    allowed_sale_types: []
   });
 
   const [clientCategories, setClientCategories] = useState([]);
@@ -99,7 +111,8 @@ export default function Operators() {
       name: "",
       categories: [],
       commission_visible_to_bo: false,
-      has_client_categories: false
+      has_client_categories: false,
+      allowed_sale_types: []
     });
     setClientCategories([]);
     setNewCategoryName("");
@@ -108,11 +121,41 @@ export default function Operators() {
 
   const openEditModal = async (operator) => {
     setEditingOperator(operator);
+
+    let allowedSaleTypes = operator.allowed_sale_types || [];
+
+    if (allowedSaleTypes.length === 0) {
+      try {
+        const settings = await commissionsService.getOperatorSettings(operator.id);
+        if (settings && settings.length > 0) {
+          const saleTypesWithCommissions = new Set();
+
+          for (const setting of settings) {
+            const rules = await commissionsService.getRules(setting.id);
+            if (rules && rules.length > 0) {
+              rules.forEach(rule => {
+                if (rule.sale_type) {
+                  saleTypesWithCommissions.add(rule.sale_type);
+                }
+              });
+            }
+          }
+
+          if (saleTypesWithCommissions.size > 0) {
+            allowedSaleTypes = Array.from(saleTypesWithCommissions);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading commission rules:", error);
+      }
+    }
+
     setFormData({
       name: operator.name || "",
       categories: operator.categories || [],
       commission_visible_to_bo: operator.commission_visible_to_bo || false,
-      has_client_categories: operator.has_client_categories || false
+      has_client_categories: operator.has_client_categories || false,
+      allowed_sale_types: allowedSaleTypes
     });
     setNewCategoryName("");
 
@@ -137,6 +180,15 @@ export default function Operators() {
       categories: prev.categories.includes(category)
         ? prev.categories.filter(c => c !== category)
         : [...prev.categories, category]
+    }));
+  };
+
+  const handleSaleTypeToggle = (saleType) => {
+    setFormData(prev => ({
+      ...prev,
+      allowed_sale_types: prev.allowed_sale_types.includes(saleType)
+        ? prev.allowed_sale_types.filter(st => st !== saleType)
+        : [...prev.allowed_sale_types, saleType]
     }));
   };
 
@@ -416,6 +468,34 @@ export default function Operators() {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            <div>
+              <Label className="form-label mb-3">Tipos de Venda Permitidos</Label>
+              <p className="text-white/50 text-xs mb-3">
+                Selecione os tipos de venda disponíveis para esta operadora. Se nenhum for selecionado, todos os tipos estarão disponíveis.
+              </p>
+              <div className="grid grid-cols-1 gap-2">
+                {SALE_TYPES.map((type) => (
+                  <div
+                    key={type.value}
+                    className="flex items-center space-x-2 p-2 rounded-lg bg-[#0d474f] hover:bg-[#0d474f]/80 cursor-pointer"
+                    onClick={() => handleSaleTypeToggle(type.value)}
+                  >
+                    <Checkbox
+                      id={`sale-type-${type.value}`}
+                      checked={formData.allowed_sale_types.includes(type.value)}
+                      onCheckedChange={() => handleSaleTypeToggle(type.value)}
+                    />
+                    <Label
+                      htmlFor={`sale-type-${type.value}`}
+                      className="text-white text-sm cursor-pointer flex-1"
+                    >
+                      {type.label}
+                    </Label>
+                  </div>
+                ))}
               </div>
             </div>
 

@@ -147,6 +147,7 @@ export default function SaleForm() {
   useEffect(() => {
     fetchPartners();
     fetchSellers();
+    fetchOperators();
   }, []);
 
   const fetchPartners = async () => {
@@ -170,14 +171,10 @@ export default function SaleForm() {
     }
   };
 
-  const fetchOperators = async (partnerId) => {
-    if (!partnerId) {
-      setOperators([]);
-      return;
-    }
+  const fetchOperators = async () => {
     setLoadingOperators(true);
     try {
-      const operatorsData = await operatorsService.getOperatorsByPartner(partnerId);
+      const operatorsData = await operatorsService.getOperators();
       setOperators(operatorsData);
     } catch (error) {
       console.error("Error fetching operators:", error);
@@ -185,6 +182,29 @@ export default function SaleForm() {
     } finally {
       setLoadingOperators(false);
     }
+  };
+
+  const fetchPartnersByOperator = async (operatorId) => {
+    if (!operatorId) {
+      return [];
+    }
+    try {
+      const allPartners = await partnersService.getPartners();
+      const filteredPartners = allPartners.filter(partner => {
+        return partner.partner_operators && partner.partner_operators.some(po => po.operator_id === operatorId);
+      });
+      return filteredPartners;
+    } catch (error) {
+      console.error("Error fetching partners by operator:", error);
+      return [];
+    }
+  };
+
+  const getFilteredPartners = () => {
+    if (!formData.operator_id) return partners;
+    return partners.filter(partner => {
+      return partner.partner_operators && partner.partner_operators.some(po => po.operator_id === formData.operator_id);
+    });
   };
 
   const getFilteredOperators = () => {
@@ -222,13 +242,22 @@ export default function SaleForm() {
   };
 
   useEffect(() => {
-    if (formData.partner_id) {
-      fetchOperators(formData.partner_id);
-    } else {
-      setOperators([]);
-      handleChange("operator_id", "");
+    if (formData.operator_id) {
+      fetchPartnersByOperator(formData.operator_id).then(filteredPartners => {
+        if (formData.partner_id && !filteredPartners.some(p => p.id === formData.partner_id)) {
+          handleChange("partner_id", "");
+        }
+      });
+
+      const operator = operators.find(op => op.id === formData.operator_id);
+      if (operator?.allowed_sale_types && operator.allowed_sale_types.length > 0) {
+        const filtered = SALE_TYPES.filter(st => operator.allowed_sale_types.includes(st.value));
+        setAvailableSaleTypes(filtered);
+      } else {
+        setAvailableSaleTypes(SALE_TYPES);
+      }
     }
-  }, [formData.partner_id]);
+  }, [formData.operator_id, operators]);
 
   useEffect(() => {
     const filtered = getFilteredOperators();
@@ -1059,33 +1088,15 @@ export default function SaleForm() {
               )}
 
               <div>
-                <Label htmlFor="partner_id" className="form-label">Parceiro *</Label>
-                <Select value={formData.partner_id} onValueChange={(v) => handleChange("partner_id", v)}>
-                  <SelectTrigger className="form-input" data-testid="partner-select">
-                    <SelectValue placeholder="Selecione o parceiro" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#082d32] border-white/10">
-                    {partners.map((partner) => (
-                      <SelectItem key={partner.id} value={partner.id} className="text-white hover:bg-white/10">
-                        {partner.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
                 <Label htmlFor="operator_id" className="form-label">Operadora *</Label>
                 <Select
                   value={formData.operator_id}
                   onValueChange={handleOperatorChange}
-                  disabled={!formData.partner_id || loadingOperators || !formData.category || (formData.category === 'energia' && !formData.energy_type)}
+                  disabled={loadingOperators || !formData.category || (formData.category === 'energia' && !formData.energy_type)}
                 >
                   <SelectTrigger className="form-input" data-testid="operator-select">
                     <SelectValue placeholder={
-                      !formData.partner_id
-                        ? "Selecione primeiro um parceiro"
-                        : !formData.category
+                      !formData.category
                         ? "Selecione primeiro a categoria"
                         : (formData.category === 'energia' && !formData.energy_type)
                         ? "Selecione o tipo de energia acima"
@@ -1104,9 +1115,40 @@ export default function SaleForm() {
                     ))}
                   </SelectContent>
                 </Select>
-                {formData.partner_id && formData.category && (formData.category !== 'energia' || formData.energy_type) && getFilteredOperators().length === 0 && !loadingOperators && (
+                {formData.category && (formData.category !== 'energia' || formData.energy_type) && getFilteredOperators().length === 0 && !loadingOperators && (
                   <p className="text-orange-400 text-xs mt-1">
-                    Este parceiro não tem operadoras para esta categoria.
+                    Não há operadoras disponíveis para esta categoria.
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="partner_id" className="form-label">Parceiro *</Label>
+                <Select
+                  value={formData.partner_id}
+                  onValueChange={(v) => handleChange("partner_id", v)}
+                  disabled={!formData.operator_id}
+                >
+                  <SelectTrigger className="form-input" data-testid="partner-select">
+                    <SelectValue placeholder={
+                      !formData.operator_id
+                        ? "Selecione primeiro a operadora"
+                        : getFilteredPartners().length === 0
+                        ? "Nenhum parceiro com esta operadora"
+                        : "Selecione o parceiro"
+                    } />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#082d32] border-white/10">
+                    {getFilteredPartners().map((partner) => (
+                      <SelectItem key={partner.id} value={partner.id} className="text-white hover:bg-white/10">
+                        {partner.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formData.operator_id && getFilteredPartners().length === 0 && (
+                  <p className="text-orange-400 text-xs mt-1">
+                    Nenhum parceiro trabalha com esta operadora.
                   </p>
                 )}
               </div>

@@ -138,8 +138,8 @@ export default function SaleForm() {
     sale_date: new Date(),
     previous_monthly_value: "",
     new_monthly_value: "",
-    seller_commission: "",
-    partner_commission: "",
+    commission_seller: "",
+    commission_partner: "",
     client_type: "",
     portfolio_status: ""
   });
@@ -377,8 +377,8 @@ export default function SaleForm() {
           setShowAlert(true);
           setFormData(prev => ({
             ...prev,
-            seller_commission: "0",
-            partner_commission: "0"
+            commission_seller: "0",
+            commission_partner: "0"
           }));
           return;
         }
@@ -386,8 +386,8 @@ export default function SaleForm() {
 
       setFormData(prev => ({
         ...prev,
-        seller_commission: commissions.seller.toString(),
-        partner_commission: commissions.partner.toString()
+        commission_seller: commissions.seller.toString(),
+        commission_partner: commissions.partner.toString()
       }));
 
     } catch (error) {
@@ -656,8 +656,8 @@ export default function SaleForm() {
         new_monthly_value: ['Up_sell', 'Cross_sell'].includes(formData.sale_type)
           ? parseFloat(formData.new_monthly_value) || 0
           : 0,
-        seller_commission: parseFloat(formData.seller_commission) || 0,
-        partner_commission: parseFloat(formData.partner_commission) || 0,
+        commission_seller: parseFloat(formData.commission_seller) || 0,
+        commission_partner: parseFloat(formData.commission_partner) || 0,
         sale_date: formData.sale_date ? formData.sale_date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
       };
 
@@ -903,8 +903,8 @@ export default function SaleForm() {
               sale_date: new Date(),
               previous_monthly_value: "",
               new_monthly_value: "",
-              seller_commission: "",
-              partner_commission: ""
+              commission_seller: "",
+              commission_partner: ""
             });
           }}
           className="text-white/70 hover:text-white"
@@ -1350,19 +1350,19 @@ export default function SaleForm() {
                 <>
                   {sellers.length > 0 && (
                     <div>
-                      <Label htmlFor="seller_commission" className="form-label">
+                      <Label htmlFor="commission_seller" className="form-label">
                         Comissão Vendedor (€)
                         {commissionType === "automatic" && (
                           <span className="ml-2 text-xs text-green-400">Automático</span>
                         )}
                       </Label>
                       <Input
-                        id="seller_commission"
+                        id="commission_seller"
                         type="number"
                         step="0.01"
                         min="0"
-                        value={formData.seller_commission}
-                        onChange={(e) => handleChange("seller_commission", e.target.value)}
+                        value={formData.commission_seller}
+                        onChange={(e) => handleChange("commission_seller", e.target.value)}
                         className="form-input"
                         placeholder="0.00"
                         disabled={calculatingCommission}
@@ -1371,19 +1371,19 @@ export default function SaleForm() {
                     </div>
                   )}
                   <div>
-                    <Label htmlFor="partner_commission" className="form-label">
+                    <Label htmlFor="commission_partner" className="form-label">
                       Comissão a receber (€)
                       {commissionType === "automatic" && (
                         <span className="ml-2 text-xs text-green-400">Automático</span>
                       )}
                     </Label>
                     <Input
-                      id="partner_commission"
+                      id="commission_partner"
                       type="number"
                       step="0.01"
                       min="0"
-                      value={formData.partner_commission}
-                      onChange={(e) => handleChange("partner_commission", e.target.value)}
+                      value={formData.commission_partner}
+                      onChange={(e) => handleChange("commission_partner", e.target.value)}
                       className="form-input"
                       placeholder="0.00"
                       disabled={calculatingCommission}

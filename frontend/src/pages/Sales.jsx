@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DateSelect } from "@/components/ui/date-select";
+import { DatePickerPopup } from "@/components/ui/date-picker-popup";
 import {
   Plus,
   Eye,
@@ -438,20 +438,20 @@ export default function Sales() {
                   <>
                     <div>
                       <label className="text-xs text-white/50 mb-1 block">Data De</label>
-                      <DateSelect
+                      <DatePickerPopup
                         value={dateFrom}
                         onChange={setDateFrom}
                         placeholder="Data inicial"
-                        className="h-9 text-sm w-full"
+                        className="w-full"
                       />
                     </div>
                     <div>
                       <label className="text-xs text-white/50 mb-1 block">Data Até</label>
-                      <DateSelect
+                      <DatePickerPopup
                         value={dateTo}
                         onChange={setDateTo}
                         placeholder="Hoje"
-                        className="h-9 text-sm w-full"
+                        className="w-full"
                       />
                     </div>
                   </>

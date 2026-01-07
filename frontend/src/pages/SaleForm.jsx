@@ -141,7 +141,9 @@ export default function SaleForm() {
     commission_seller: "",
     commission_partner: "",
     client_type: "",
-    portfolio_status: ""
+    portfolio_status: "",
+    solar_power: "",
+    solar_panel_quantity: ""
   });
 
   useEffect(() => {
@@ -636,20 +638,31 @@ export default function SaleForm() {
         : parseInt(formData.loyalty_months) || 0;
 
       const payload = {
-        ...formData,
-        seller_id: formData.seller_id === "none" ? null : formData.seller_id,
+        client_name: formData.client_name,
+        client_email: formData.client_email || null,
+        client_phone: formData.client_phone || null,
+        client_nif: formData.client_nif,
+        street_address: formData.street_address,
+        postal_code: formData.postal_code,
+        city: formData.city,
+        category: formData.category,
+        sale_type: formData.sale_type || null,
+        partner_id: formData.partner_id || null,
+        operator_id: formData.operator_id || null,
+        client_category_id: formData.client_category_id || null,
+        seller_id: formData.seller_id === "none" ? null : (formData.seller_id || null),
         status: 'em_negociacao',
         contract_value: ['Up_sell', 'Cross_sell'].includes(formData.sale_type)
           ? parseFloat(formData.new_monthly_value) || 0
           : parseFloat(formData.contract_value) || 0,
         loyalty_months: finalLoyaltyMonths,
         custom_loyalty_months: formData.loyalty_months === "outra" ? parseInt(formData.custom_loyalty_months) || null : null,
-        sale_type: formData.sale_type || null,
         energy_type: formData.energy_type || null,
         cpe: formData.cpe || null,
         potencia: formData.potencia || null,
         cui: formData.cui || null,
         escalao: formData.escalao || null,
+        notes: formData.notes || null,
         previous_monthly_value: ['Up_sell', 'Cross_sell'].includes(formData.sale_type)
           ? parseFloat(formData.previous_monthly_value) || 0
           : 0,
@@ -658,13 +671,18 @@ export default function SaleForm() {
           : 0,
         commission_seller: parseFloat(formData.commission_seller) || 0,
         commission_partner: parseFloat(formData.commission_partner) || 0,
-        sale_date: formData.sale_date ? formData.sale_date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+        client_type: formData.client_type || null,
+        portfolio_status: formData.portfolio_status || null,
+        sale_date: formData.sale_date ? formData.sale_date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        solar_power: formData.solar_power ? parseFloat(formData.solar_power) : null,
+        solar_panel_quantity: formData.solar_panel_quantity ? parseInt(formData.solar_panel_quantity) : null
       };
 
       await salesService.createSale(payload);
       toast.success("Venda criada com sucesso");
       navigate("/sales");
     } catch (error) {
+      console.error('Erro ao criar venda:', error);
       const message = error.message || "Erro ao guardar venda";
       toast.error(message);
     } finally {
@@ -890,6 +908,7 @@ export default function SaleForm() {
               sale_type: "",
               partner_id: "",
               operator_id: "",
+              client_category_id: "",
               seller_id: "none",
               contract_value: "",
               loyalty_months: "",
@@ -904,7 +923,11 @@ export default function SaleForm() {
               previous_monthly_value: "",
               new_monthly_value: "",
               commission_seller: "",
-              commission_partner: ""
+              commission_partner: "",
+              client_type: "",
+              portfolio_status: "",
+              solar_power: "",
+              solar_panel_quantity: ""
             });
           }}
           className="text-white/70 hover:text-white"
@@ -1501,7 +1524,7 @@ export default function SaleForm() {
                     step="0.01"
                     min="0"
                     value={formData.solar_power || ""}
-                    onChange={(e) => handleChange("solar_power", e.target.value ? parseFloat(e.target.value) : null)}
+                    onChange={(e) => handleChange("solar_power", e.target.value)}
                     className="form-input"
                     placeholder="0.00"
                   />
@@ -1514,7 +1537,7 @@ export default function SaleForm() {
                     type="number"
                     min="0"
                     value={formData.solar_panel_quantity || ""}
-                    onChange={(e) => handleChange("solar_panel_quantity", e.target.value ? parseInt(e.target.value) : null)}
+                    onChange={(e) => handleChange("solar_panel_quantity", e.target.value)}
                     className="form-input"
                     placeholder="0"
                   />

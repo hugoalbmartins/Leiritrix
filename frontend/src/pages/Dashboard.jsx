@@ -339,8 +339,8 @@ export default function Dashboard() {
       </div>
 
       {/* Metrics Grid - Main KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card className="metric-card" data-testid="metric-mensalidades">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
+        <Card className="metric-card w-full" data-testid="metric-mensalidades">
           <CardContent className="p-0">
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -366,7 +366,7 @@ export default function Dashboard() {
         {user.role === 'admin' ? (
           <>
             {hasSellers && (
-              <Card className="metric-card" data-testid="metric-seller-commissions">
+              <Card className="metric-card w-full" data-testid="metric-seller-commissions">
                 <CardContent className="p-0">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -391,7 +391,7 @@ export default function Dashboard() {
             )}
 
             {hasHiddenOperators && (
-              <Card className="metric-card" data-testid="metric-non-visible-commissions">
+              <Card className="metric-card w-full" data-testid="metric-non-visible-commissions">
                 <CardContent className="p-0">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -417,7 +417,7 @@ export default function Dashboard() {
           </>
         ) : user.role === 'backoffice' ? (
           <>
-            <Card className="metric-card" data-testid="metric-backoffice-commission">
+            <Card className="metric-card w-full" data-testid="metric-backoffice-commission">
               <CardContent className="p-0">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -440,7 +440,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card className="metric-card" data-testid="metric-partner-commissions">
+            <Card className="metric-card w-full" data-testid="metric-partner-commissions">
               <CardContent className="p-0">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -468,8 +468,8 @@ export default function Dashboard() {
 
       {/* Second row for admin - partner and active commissions */}
       {user.role === 'admin' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="metric-card" data-testid="metric-partner-commissions">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-fr">
+          <Card className="metric-card w-full" data-testid="metric-partner-commissions">
             <CardContent className="p-0">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -492,7 +492,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="metric-card" data-testid="metric-active-commissions">
+          <Card className="metric-card w-full" data-testid="metric-active-commissions">
             <CardContent className="p-0">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -520,7 +520,7 @@ export default function Dashboard() {
       {/* Active commissions for backoffice */}
       {user.role === 'backoffice' && (
         <div className="grid grid-cols-1 gap-4">
-          <Card className="metric-card" data-testid="metric-active-commissions">
+          <Card className="metric-card w-full" data-testid="metric-active-commissions">
             <CardContent className="p-0">
               <div className="flex items-start justify-between">
                 <div className="flex-1">

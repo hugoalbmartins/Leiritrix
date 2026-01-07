@@ -25,7 +25,10 @@ import {
   Phone,
   Sun,
   X,
-  Filter
+  Filter,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -73,6 +76,11 @@ export default function Sales() {
   const [activeDateTo, setActiveDateTo] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortColumn, setSortColumn] = useState("sale_date");
+  const [sortDirection, setSortDirection] = useState("desc");
+
+  const ITEMS_PER_PAGE = 10;
 
   const fetchData = useCallback(async () => {
     try {
@@ -169,7 +177,55 @@ export default function Sales() {
     setSaleDateTo(null);
     setActiveDateFrom(null);
     setActiveDateTo(null);
+    setCurrentPage(1);
   };
+
+  const handleSort = (column) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+    setCurrentPage(1);
+  };
+
+  const sortedSales = [...sales].sort((a, b) => {
+    let aValue = a[sortColumn];
+    let bValue = b[sortColumn];
+
+    if (sortColumn === "client_name") {
+      aValue = a.client_name || "";
+      bValue = b.client_name || "";
+    } else if (sortColumn === "category") {
+      aValue = CATEGORY_MAP[a.category]?.label || "";
+      bValue = CATEGORY_MAP[b.category]?.label || "";
+    } else if (sortColumn === "partner_name") {
+      aValue = a.partner_name || "";
+      bValue = b.partner_name || "";
+    } else if (sortColumn === "contract_value") {
+      aValue = a.contract_value || 0;
+      bValue = b.contract_value || 0;
+    } else if (sortColumn === "commission") {
+      aValue = a.commission || 0;
+      bValue = b.commission || 0;
+    } else if (sortColumn === "status") {
+      aValue = STATUS_MAP[a.status]?.label || "";
+      bValue = STATUS_MAP[b.status]?.label || "";
+    } else if (sortColumn === "sale_date") {
+      aValue = new Date(a.sale_date || a.created_at).getTime();
+      bValue = new Date(b.sale_date || b.created_at).getTime();
+    }
+
+    if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
+    if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  const totalPages = Math.ceil(sortedSales.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedSales = sortedSales.slice(startIndex, endIndex);
 
   const hasFilters = statusFilter || categoryFilter || partnerFilter || search || saleDateFrom || saleDateTo || activeDateFrom || activeDateTo;
 
@@ -291,41 +347,45 @@ export default function Sales() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
-                  <label className="text-xs text-white/50 mb-1 block">Data de Venda</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <DateSelect
-                      value={saleDateFrom}
-                      onChange={setSaleDateFrom}
-                      placeholder="De"
-                      className="h-9 text-sm"
-                    />
-                    <DateSelect
-                      value={saleDateTo}
-                      onChange={setSaleDateTo}
-                      placeholder="Até"
-                      className="h-9 text-sm"
-                    />
-                  </div>
+                  <label className="text-xs text-white/50 mb-2 block">Data de Venda (De)</label>
+                  <DateSelect
+                    value={saleDateFrom}
+                    onChange={setSaleDateFrom}
+                    placeholder="Data inicial"
+                    className="h-10 text-sm w-full"
+                  />
                 </div>
 
                 <div>
-                  <label className="text-xs text-white/50 mb-1 block">Data de Ativação</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <DateSelect
-                      value={activeDateFrom}
-                      onChange={setActiveDateFrom}
-                      placeholder="De"
-                      className="h-9 text-sm"
-                    />
-                    <DateSelect
-                      value={activeDateTo}
-                      onChange={setActiveDateTo}
-                      placeholder="Até"
-                      className="h-9 text-sm"
-                    />
-                  </div>
+                  <label className="text-xs text-white/50 mb-2 block">Data de Venda (Até)</label>
+                  <DateSelect
+                    value={saleDateTo}
+                    onChange={setSaleDateTo}
+                    placeholder="Data final"
+                    className="h-10 text-sm w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-white/50 mb-2 block">Data de Ativação (De)</label>
+                  <DateSelect
+                    value={activeDateFrom}
+                    onChange={setActiveDateFrom}
+                    placeholder="Data inicial"
+                    className="h-10 text-sm w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-white/50 mb-2 block">Data de Ativação (Até)</label>
+                  <DateSelect
+                    value={activeDateTo}
+                    onChange={setActiveDateTo}
+                    placeholder="Data final"
+                    className="h-10 text-sm w-full"
+                  />
                 </div>
               </div>
             </CardContent>
@@ -339,20 +399,76 @@ export default function Sales() {
           <table className="data-table" data-testid="sales-table">
             <thead>
               <tr>
-                <th>Cliente</th>
-                <th>Categoria</th>
+                <th>
+                  <button
+                    onClick={() => handleSort("client_name")}
+                    className="flex items-center gap-1 hover:text-[#c8f31d] transition-colors"
+                  >
+                    Cliente
+                    <ArrowUpDown size={14} className={sortColumn === "client_name" ? "text-[#c8f31d]" : "text-white/40"} />
+                  </button>
+                </th>
+                <th>
+                  <button
+                    onClick={() => handleSort("category")}
+                    className="flex items-center gap-1 hover:text-[#c8f31d] transition-colors"
+                  >
+                    Categoria
+                    <ArrowUpDown size={14} className={sortColumn === "category" ? "text-[#c8f31d]" : "text-white/40"} />
+                  </button>
+                </th>
                 <th>Tipo</th>
-                <th>Parceiro</th>
-                <th>Valor</th>
-                <th>Comissão</th>
-                <th>Estado</th>
-                <th>Data de Venda</th>
+                <th>
+                  <button
+                    onClick={() => handleSort("partner_name")}
+                    className="flex items-center gap-1 hover:text-[#c8f31d] transition-colors"
+                  >
+                    Parceiro
+                    <ArrowUpDown size={14} className={sortColumn === "partner_name" ? "text-[#c8f31d]" : "text-white/40"} />
+                  </button>
+                </th>
+                <th>
+                  <button
+                    onClick={() => handleSort("contract_value")}
+                    className="flex items-center gap-1 hover:text-[#c8f31d] transition-colors"
+                  >
+                    Valor
+                    <ArrowUpDown size={14} className={sortColumn === "contract_value" ? "text-[#c8f31d]" : "text-white/40"} />
+                  </button>
+                </th>
+                <th>
+                  <button
+                    onClick={() => handleSort("commission")}
+                    className="flex items-center gap-1 hover:text-[#c8f31d] transition-colors"
+                  >
+                    Comissão
+                    <ArrowUpDown size={14} className={sortColumn === "commission" ? "text-[#c8f31d]" : "text-white/40"} />
+                  </button>
+                </th>
+                <th>
+                  <button
+                    onClick={() => handleSort("status")}
+                    className="flex items-center gap-1 hover:text-[#c8f31d] transition-colors"
+                  >
+                    Estado
+                    <ArrowUpDown size={14} className={sortColumn === "status" ? "text-[#c8f31d]" : "text-white/40"} />
+                  </button>
+                </th>
+                <th>
+                  <button
+                    onClick={() => handleSort("sale_date")}
+                    className="flex items-center gap-1 hover:text-[#c8f31d] transition-colors"
+                  >
+                    Data de Venda
+                    <ArrowUpDown size={14} className={sortColumn === "sale_date" ? "text-[#c8f31d]" : "text-white/40"} />
+                  </button>
+                </th>
                 <th className="text-right">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {sales.length > 0 ? (
-                sales.map((sale) => {
+              {paginatedSales.length > 0 ? (
+                paginatedSales.map((sale) => {
                   const category = CATEGORY_MAP[sale.category];
                   const CategoryIcon = category?.icon || Zap;
                   const status = STATUS_MAP[sale.status];
@@ -385,13 +501,26 @@ export default function Sales() {
                         {new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(sale.contract_value)}
                       </td>
                       <td className="font-mono">
-                        {sale.commission !== null && sale.commission !== undefined ? (
-                          <span className="text-green-400">
-                            {new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(sale.commission)}
-                          </span>
-                        ) : (
-                          <span className="text-white/30">-</span>
-                        )}
+                        {(() => {
+                          const shouldShowCommission =
+                            user.role === 'admin' ||
+                            (user.role === 'backoffice' && sale.operators?.commission_visible_to_bo);
+
+                          if (!shouldShowCommission) {
+                            return <span className="text-white/30">-</span>;
+                          }
+
+                          if (sale.commission !== null && sale.commission !== undefined) {
+                            const colorClass = user.role === 'admin' ? 'text-[#c8f31d]' : 'text-green-400';
+                            return (
+                              <span className={colorClass}>
+                                {new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(sale.commission)}
+                              </span>
+                            );
+                          }
+
+                          return <span className="text-white/30">-</span>;
+                        })()}
                       </td>
                       <td>
                         <Badge className={`${status?.color} border text-xs`}>
@@ -450,6 +579,68 @@ export default function Sales() {
           </table>
         </div>
       </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-white/60 text-sm">
+            Página {currentPage} de {totalPages} ({sortedSales.length} vendas)
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="border-white/10 text-white hover:bg-white/5 disabled:opacity-30"
+            >
+              <ChevronLeft size={16} />
+              Anterior
+            </Button>
+            <div className="flex gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                if (
+                  page === 1 ||
+                  page === totalPages ||
+                  (page >= currentPage - 1 && page <= currentPage + 1)
+                ) {
+                  return (
+                    <Button
+                      key={page}
+                      variant={page === currentPage ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(page)}
+                      className={
+                        page === currentPage
+                          ? "bg-[#c8f31d] text-[#082d32] hover:bg-[#c8f31d]/90"
+                          : "border-white/10 text-white hover:bg-white/5"
+                      }
+                    >
+                      {page}
+                    </Button>
+                  );
+                } else if (
+                  page === currentPage - 2 ||
+                  page === currentPage + 2
+                ) {
+                  return <span key={page} className="text-white/40 px-2">...</span>;
+                }
+                return null;
+              })}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="border-white/10 text-white hover:bg-white/5 disabled:opacity-30"
+            >
+              Seguinte
+              <ChevronRight size={16} />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

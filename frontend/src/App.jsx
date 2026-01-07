@@ -217,12 +217,13 @@ function AppRoutes() {
 }
 
 function App() {
+  console.log('App rendering');
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Toaster 
-          position="top-right" 
-          richColors 
+        <Toaster
+          position="top-right"
+          richColors
           toastOptions={{
             style: {
               background: '#082d32',

@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/App";
 import { useNavigate, useParams } from "react-router-dom";
 import { salesService } from "@/services/salesService";
+import { partnersService } from "@/services/partnersService";
+import { usersService } from "@/services/usersService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -68,6 +70,30 @@ const STATUSES = [
   { value: "anulado", label: "Anulado" }
 ];
 
+const CATEGORIES = [
+  { value: "energia", label: "Energia" },
+  { value: "telecomunicacoes", label: "Telecomunicações" },
+  { value: "paineis_solares", label: "Painéis Solares" }
+];
+
+const SALE_TYPES = [
+  { value: "NI", label: "NI (Nova Instalação)" },
+  { value: "MC", label: "MC (Mudança de Casa)" },
+  { value: "Refid", label: "Refid (Refidelização)" },
+  { value: "Refid_Acrescimo", label: "Refid com Acréscimo" },
+  { value: "Refid_Decrescimo", label: "Refid com Decréscimo" },
+  { value: "Up_sell", label: "Up-sell" },
+  { value: "Cross_sell", label: "Cross-sell" }
+];
+
+const LOYALTY_OPTIONS = [
+  { value: "0", label: "Sem fidelização" },
+  { value: "12", label: "12 meses" },
+  { value: "24", label: "24 meses" },
+  { value: "36", label: "36 meses" },
+  { value: "outra", label: "Outra" }
+];
+
 export default function SaleDetail({ editMode = false }) {
   const { user, isAdminOrBackoffice } = useAuth();
   const navigate = useNavigate();
@@ -97,6 +123,13 @@ export default function SaleDetail({ editMode = false }) {
   const [editEscalao, setEditEscalao] = useState("");
   const [editSolarPower, setEditSolarPower] = useState("");
   const [editSolarPanelQuantity, setEditSolarPanelQuantity] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editSaleType, setEditSaleType] = useState("");
+  const [editPartnerId, setEditPartnerId] = useState("");
+  const [editLoyaltyMonths, setEditLoyaltyMonths] = useState("");
+  const [editCustomLoyaltyMonths, setEditCustomLoyaltyMonths] = useState("");
+  const [partners, setPartners] = useState([]);
+  const [sellers, setSellers] = useState([]);
   const [isEditing, setIsEditing] = useState(editMode);
 
   const fetchSale = useCallback(async () => {
@@ -121,6 +154,19 @@ export default function SaleDetail({ editMode = false }) {
       setEditEscalao(saleData.escalao || "");
       setEditSolarPower(saleData.solar_power?.toString() || "");
       setEditSolarPanelQuantity(saleData.solar_panel_quantity?.toString() || "");
+      setEditCategory(saleData.category || "");
+      setEditSaleType(saleData.sale_type || "");
+      setEditPartnerId(saleData.partner_id || "");
+
+      const loyaltyMonths = saleData.loyalty_months?.toString() || "0";
+      if (["0", "12", "24", "36"].includes(loyaltyMonths)) {
+        setEditLoyaltyMonths(loyaltyMonths);
+        setEditCustomLoyaltyMonths("");
+      } else {
+        setEditLoyaltyMonths("outra");
+        setEditCustomLoyaltyMonths(loyaltyMonths);
+      }
+
       if (saleData.active_date) {
         setEditActiveDate(new Date(saleData.active_date));
       }
@@ -135,16 +181,44 @@ export default function SaleDetail({ editMode = false }) {
     }
   }, [id, navigate]);
 
+  const fetchPartners = async () => {
+    try {
+      const partnersData = await partnersService.getAllPartners();
+      setPartners(partnersData);
+    } catch (error) {
+      console.error("Error fetching partners:", error);
+    }
+  };
+
+  const fetchSellers = async () => {
+    try {
+      const sellersData = await usersService.getUsersByRole("vendedor");
+      setSellers(sellersData);
+    } catch (error) {
+      console.error("Error fetching sellers:", error);
+    }
+  };
+
   useEffect(() => {
     fetchSale();
+    fetchPartners();
+    fetchSellers();
   }, [fetchSale]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
+      const finalLoyaltyMonths = editLoyaltyMonths === "outra"
+        ? (editCustomLoyaltyMonths ? parseInt(editCustomLoyaltyMonths) : 0)
+        : parseInt(editLoyaltyMonths);
+
       const payload = {
         status: editStatus,
         notes: editNotes,
+        category: editCategory,
+        sale_type: editSaleType,
+        partner_id: editPartnerId,
+        loyalty_months: finalLoyaltyMonths,
         active_date: editActiveDate ? editActiveDate.toISOString() : null,
         sale_date: editSaleDate ? editSaleDate.toISOString().split('T')[0] : null,
         req: sale.category === "telecomunicacoes" ? editReq : null,
@@ -339,6 +413,84 @@ export default function SaleDetail({ editMode = false }) {
               </div>
 
               <div>
+                <Label className="form-label">Categoria</Label>
+                <Select value={editCategory} onValueChange={setEditCategory}>
+                  <SelectTrigger className="form-input" data-testid="edit-category-select">
+                    <SelectValue placeholder="Selecione a categoria" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#082d32] border-white/10">
+                    {CATEGORIES.map((cat) => (
+                      <SelectItem key={cat.value} value={cat.value} className="text-white hover:bg-white/10">
+                        {cat.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="form-label">Tipo de Venda</Label>
+                <Select value={editSaleType} onValueChange={setEditSaleType}>
+                  <SelectTrigger className="form-input" data-testid="edit-sale-type-select">
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#082d32] border-white/10">
+                    {SALE_TYPES.map((type) => (
+                      <SelectItem key={type.value} value={type.value} className="text-white hover:bg-white/10">
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="form-label">Parceiro</Label>
+                <Select value={editPartnerId} onValueChange={setEditPartnerId}>
+                  <SelectTrigger className="form-input" data-testid="edit-partner-select">
+                    <SelectValue placeholder="Selecione o parceiro" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#082d32] border-white/10">
+                    {partners.map((partner) => (
+                      <SelectItem key={partner.id} value={partner.id} className="text-white hover:bg-white/10">
+                        {partner.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="form-label">Prazo de Fidelização</Label>
+                <Select value={editLoyaltyMonths} onValueChange={setEditLoyaltyMonths}>
+                  <SelectTrigger className="form-input" data-testid="edit-loyalty-select">
+                    <SelectValue placeholder="Selecione o prazo" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#082d32] border-white/10">
+                    {LOYALTY_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value} className="text-white hover:bg-white/10">
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {editLoyaltyMonths === "outra" && (
+                <div>
+                  <Label className="form-label">Fidelização Personalizada (meses)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={editCustomLoyaltyMonths}
+                    onChange={(e) => setEditCustomLoyaltyMonths(e.target.value)}
+                    className="form-input"
+                    placeholder="Insira o número de meses"
+                  />
+                </div>
+              )}
+
+              <div>
                 <Label className="form-label">Data de Venda</Label>
                 <DateSelect
                   value={editSaleDate}
@@ -398,22 +550,24 @@ export default function SaleDetail({ editMode = false }) {
                     </div>
                   ) : (
                     <>
-                      <div>
-                        <Label className="form-label flex items-center gap-2">
-                          <Euro size={14} className="text-[#c8f31d]" />
-                          Comissão Vendedor (€)
-                        </Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={editCommissionSeller}
-                          onChange={(e) => setEditCommissionSeller(e.target.value)}
-                          className="form-input"
-                          placeholder="0.00"
-                          data-testid="edit-commission-seller-input"
-                        />
-                      </div>
+                      {sellers && sellers.length > 0 && (
+                        <div>
+                          <Label className="form-label flex items-center gap-2">
+                            <Euro size={14} className="text-[#c8f31d]" />
+                            Comissão Vendedor (€)
+                          </Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={editCommissionSeller}
+                            onChange={(e) => setEditCommissionSeller(e.target.value)}
+                            className="form-input"
+                            placeholder="0.00"
+                            data-testid="edit-commission-seller-input"
+                          />
+                        </div>
+                      )}
                       <div>
                         <Label className="form-label flex items-center gap-2">
                           <Euro size={14} className="text-[#c8f31d]" />

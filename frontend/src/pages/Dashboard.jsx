@@ -339,21 +339,7 @@ export default function Dashboard() {
       </div>
 
       {/* Metrics Grid - Main KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="metric-card" data-testid="metric-month-sales">
-          <CardContent className="p-0">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="metric-value">{metrics?.sales_this_month || 0}</p>
-                <p className="metric-label">Vendas do Mês</p>
-              </div>
-              <div className="bg-[#c8f31d]/10 p-2 rounded-lg">
-                <TrendingUp className="text-[#c8f31d]" size={20} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card className="metric-card" data-testid="metric-mensalidades">
           <CardContent className="p-0">
             <div className="flex items-start justify-between">
@@ -491,7 +477,7 @@ export default function Dashboard() {
                     {formatCurrency(metrics?.partner_commissions)}
                   </p>
                   <p className="metric-label">
-                    Comissões Operadoras (Visíveis)
+                    Comissões previstas
                     {metrics?.partner_commissions_yoy !== undefined && (
                       <span className={`block mt-1 text-xs font-mono ${getPercentageColor(metrics.partner_commissions_yoy)}`}>
                         {formatPercentage(metrics.partner_commissions_yoy)} vs ano anterior
@@ -514,7 +500,7 @@ export default function Dashboard() {
                     {formatCurrency(metrics?.active_commissions)}
                   </p>
                   <p className="metric-label">
-                    Comissões Ativas (Visíveis)
+                    Comissões vendas ativas
                     {metrics?.active_commissions_yoy !== undefined && (
                       <span className={`block mt-1 text-xs font-mono ${getPercentageColor(metrics.active_commissions_yoy)}`}>
                         {formatPercentage(metrics.active_commissions_yoy)} vs ano anterior
@@ -675,15 +661,26 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+
+            {/* Total Sales */}
+            {categoryData.length > 0 && (
+              <div className="text-center mt-4 mb-2">
+                <p className="text-white/50 text-sm">Total de Vendas do Mês</p>
+                <p className="text-white text-2xl font-bold font-mono">
+                  {categoryData.reduce((sum, item) => sum + item.value, 0)}
+                </p>
+              </div>
+            )}
+
             {/* Legend */}
             <div className="flex flex-wrap justify-center gap-4 mt-4">
               {categoryData.map((item, index) => (
                 <div key={item.name} className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
+                  <div
+                    className="w-3 h-3 rounded-full"
                     style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
                   />
-                  <span className="text-sm text-white/70">{item.name}</span>
+                  <span className="text-sm text-white/70">{item.name}: {item.value}</span>
                 </div>
               ))}
             </div>

@@ -237,77 +237,96 @@ export default function Sales() {
         {/* Advanced Filters - Collapsible */}
         {showFilters && (
           <Card className="card-leiritrix border-[#c8f31d]/20">
-            <CardContent className="p-3">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="form-input h-9 text-sm" data-testid="status-filter">
-                    <SelectValue placeholder="Estado" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#082d32] border-white/10">
-                    <SelectItem value="all" className="text-white hover:bg-white/10">Todos</SelectItem>
-                    {Object.entries(STATUS_MAP).map(([key, status]) => (
-                      <SelectItem key={key} value={key} className="text-white hover:bg-white/10 text-sm">
-                        {status.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <CardContent className="p-4 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs text-white/50 mb-1 block">Estado</label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="form-input h-9 text-sm" data-testid="status-filter">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#082d32] border-white/10 z-50">
+                      <SelectItem value="all" className="text-white hover:bg-white/10">Todos</SelectItem>
+                      {Object.entries(STATUS_MAP).map(([key, status]) => (
+                        <SelectItem key={key} value={key} className="text-white hover:bg-white/10 text-sm">
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="form-input h-9 text-sm" data-testid="category-filter">
-                    <SelectValue placeholder="Categoria" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#082d32] border-white/10">
-                    <SelectItem value="all" className="text-white hover:bg-white/10">Todas</SelectItem>
-                    {Object.entries(CATEGORY_MAP).map(([key, cat]) => (
-                      <SelectItem key={key} value={key} className="text-white hover:bg-white/10 text-sm">
-                        {cat.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div>
+                  <label className="text-xs text-white/50 mb-1 block">Categoria</label>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="form-input h-9 text-sm" data-testid="category-filter">
+                      <SelectValue placeholder="Todas" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#082d32] border-white/10 z-50">
+                      <SelectItem value="all" className="text-white hover:bg-white/10">Todas</SelectItem>
+                      {Object.entries(CATEGORY_MAP).map(([key, cat]) => (
+                        <SelectItem key={key} value={key} className="text-white hover:bg-white/10 text-sm">
+                          {cat.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                <Select value={partnerFilter} onValueChange={setPartnerFilter}>
-                  <SelectTrigger className="form-input h-9 text-sm" data-testid="partner-filter">
-                    <SelectValue placeholder="Parceiro" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#082d32] border-white/10">
-                    <SelectItem value="all" className="text-white hover:bg-white/10">Todos</SelectItem>
-                    {partners.map((partner) => (
-                      <SelectItem key={partner.id} value={partner.id} className="text-white hover:bg-white/10 text-sm">
-                        {partner.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div>
+                  <label className="text-xs text-white/50 mb-1 block">Parceiro</label>
+                  <Select value={partnerFilter} onValueChange={setPartnerFilter}>
+                    <SelectTrigger className="form-input h-9 text-sm" data-testid="partner-filter">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#082d32] border-white/10 z-50">
+                      <SelectItem value="all" className="text-white hover:bg-white/10">Todos</SelectItem>
+                      {partners.map((partner) => (
+                        <SelectItem key={partner.id} value={partner.id} className="text-white hover:bg-white/10 text-sm">
+                          {partner.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-                <DateSelect
-                  value={saleDateFrom}
-                  onChange={setSaleDateFrom}
-                  placeholder="Venda de"
-                  className="h-9 text-sm"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-white/50 mb-1 block">Data de Venda</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <DateSelect
+                      value={saleDateFrom}
+                      onChange={setSaleDateFrom}
+                      placeholder="De"
+                      className="h-9 text-sm"
+                    />
+                    <DateSelect
+                      value={saleDateTo}
+                      onChange={setSaleDateTo}
+                      placeholder="Até"
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                </div>
 
-                <DateSelect
-                  value={saleDateTo}
-                  onChange={setSaleDateTo}
-                  placeholder="Venda até"
-                  className="h-9 text-sm"
-                />
-
-                <DateSelect
-                  value={activeDateFrom}
-                  onChange={setActiveDateFrom}
-                  placeholder="Ativação de"
-                  className="h-9 text-sm"
-                />
-
-                <DateSelect
-                  value={activeDateTo}
-                  onChange={setActiveDateTo}
-                  placeholder="Ativação até"
-                  className="h-9 text-sm"
-                />
+                <div>
+                  <label className="text-xs text-white/50 mb-1 block">Data de Ativação</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <DateSelect
+                      value={activeDateFrom}
+                      onChange={setActiveDateFrom}
+                      placeholder="De"
+                      className="h-9 text-sm"
+                    />
+                    <DateSelect
+                      value={activeDateTo}
+                      onChange={setActiveDateTo}
+                      placeholder="Até"
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

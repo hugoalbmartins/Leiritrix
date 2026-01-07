@@ -1161,25 +1161,27 @@ export default function SaleForm() {
 
               {formData.operator_id && formData.partner_id && (
                 <>
-                  <div>
-                    <Label htmlFor="seller_commission" className="form-label">
-                      Comissão Vendedor (€)
-                      {commissionType === "automatic" && (
-                        <span className="ml-2 text-xs text-green-400">Automático</span>
-                      )}
-                    </Label>
-                    <Input
-                      id="seller_commission"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.seller_commission}
-                      onChange={(e) => handleChange("seller_commission", e.target.value)}
-                      className="form-input"
-                      placeholder="0.00"
-                      disabled={calculatingCommission}
-                    />
-                  </div>
+                  {sellers.length > 0 && (
+                    <div>
+                      <Label htmlFor="seller_commission" className="form-label">
+                        Comissão Vendedor (€)
+                        {commissionType === "automatic" && (
+                          <span className="ml-2 text-xs text-green-400">Automático</span>
+                        )}
+                      </Label>
+                      <Input
+                        id="seller_commission"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.seller_commission}
+                        onChange={(e) => handleChange("seller_commission", e.target.value)}
+                        className="form-input"
+                        placeholder="0.00"
+                        disabled={calculatingCommission}
+                      />
+                    </div>
+                  )}
                   <div>
                     <Label htmlFor="partner_commission" className="form-label">
                       Comissão a receber (€)

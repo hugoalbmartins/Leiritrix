@@ -11,6 +11,14 @@ export const salesService = {
           id,
           name,
           commission_visible_to_bo
+        ),
+        partners:partner_id (
+          id,
+          name
+        ),
+        users:seller_id (
+          id,
+          name
         )
       `);
 
@@ -33,7 +41,14 @@ export const salesService = {
     const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data;
+
+    const mappedData = data.map(sale => ({
+      ...sale,
+      partner_name: sale.partners?.name || '',
+      seller_name: sale.users?.name || ''
+    }));
+
+    return mappedData;
   },
 
   async getSaleById(saleId) {
@@ -45,12 +60,29 @@ export const salesService = {
           id,
           name,
           commission_visible_to_bo
+        ),
+        partners:partner_id (
+          id,
+          name
+        ),
+        users:seller_id (
+          id,
+          name
         )
       `)
       .eq('id', saleId)
       .maybeSingle();
 
     if (error) throw error;
+
+    if (data) {
+      return {
+        ...data,
+        partner_name: data.partners?.name || '',
+        seller_name: data.users?.name || ''
+      };
+    }
+
     return data;
   },
 
@@ -174,12 +206,27 @@ export const salesService = {
         operators:operator_id (
           id,
           name
+        ),
+        partners:partner_id (
+          id,
+          name
+        ),
+        users:seller_id (
+          id,
+          name
         )
       `)
       .eq('client_nif', nif)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+
+    const mappedData = (data || []).map(sale => ({
+      ...sale,
+      partner_name: sale.partners?.name || '',
+      seller_name: sale.users?.name || ''
+    }));
+
+    return mappedData;
   },
 };

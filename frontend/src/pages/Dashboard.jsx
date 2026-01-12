@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -79,7 +80,7 @@ export default function Dashboard() {
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [showAlertsDialog, setShowAlertsDialog] = useState(false);
   const [filterNIF, setFilterNIF] = useState("");
-  const [filterPartner, setFilterPartner] = useState("");
+  const [filterPartner, setFilterPartner] = useState("all");
 
   useEffect(() => {
     fetchData();
@@ -269,14 +270,17 @@ export default function Dashboard() {
 
       setMonthlyStats(yoyData);
 
-      const sortedAlerts = expiringSoon.sort((a, b) => {
-        const endDateA = new Date(a.loyalty_end_date);
-        const endDateB = new Date(b.loyalty_end_date);
+      const alertsWithDays = expiringSoon.map(alert => {
+        const endDate = new Date(alert.loyalty_end_date);
         const nowDate = new Date();
-        const daysA = Math.ceil((endDateA - nowDate) / (1000 * 60 * 60 * 24));
-        const daysB = Math.ceil((endDateB - nowDate) / (1000 * 60 * 60 * 24));
-        return daysA - daysB;
+        const daysUntilEnd = Math.ceil((endDate - nowDate) / (1000 * 60 * 60 * 24));
+        return {
+          ...alert,
+          days_until_end: daysUntilEnd
+        };
       });
+
+      const sortedAlerts = alertsWithDays.sort((a, b) => a.days_until_end - b.days_until_end);
 
       setAlerts(sortedAlerts);
     } catch (error) {
@@ -806,7 +810,7 @@ export default function Dashboard() {
         setShowAlertsDialog(open);
         if (!open) {
           setFilterNIF("");
-          setFilterPartner("");
+          setFilterPartner("all");
         }
       }}>
         <DialogContent className="bg-[#082d32] border-white/10 max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
@@ -815,7 +819,7 @@ export default function Dashboard() {
               <AlertTriangle className="text-[#c8f31d]" size={24} />
               Alertas de Fidelização ({alerts.filter(alert => {
                 const matchNIF = !filterNIF || alert.client_nif?.includes(filterNIF);
-                const matchPartner = !filterPartner || alert.partner_name?.toLowerCase().includes(filterPartner.toLowerCase());
+                const matchPartner = !filterPartner || filterPartner === 'all' || alert.partner_name === filterPartner;
                 return matchNIF && matchPartner;
               }).length})
             </DialogTitle>
@@ -837,20 +841,28 @@ export default function Dashboard() {
             </div>
             <div>
               <label className="text-white/60 text-sm mb-1 block">Filtrar por Parceiro</label>
-              <Input
-                type="text"
-                placeholder="Digite o nome do parceiro..."
-                value={filterPartner}
-                onChange={(e) => setFilterPartner(e.target.value)}
-                className="bg-[#0a3940] border-white/10 text-white placeholder:text-white/30"
-              />
+              <Select value={filterPartner} onValueChange={setFilterPartner}>
+                <SelectTrigger className="bg-[#0a3940] border-white/10 text-white">
+                  <SelectValue placeholder="Todos os parceiros" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#0a3940] border-white/10">
+                  <SelectItem value="all" className="text-white hover:bg-white/10">Todos os parceiros</SelectItem>
+                  {Array.from(new Set(alerts.map(alert => alert.partner_name).filter(Boolean)))
+                    .sort()
+                    .map(partner => (
+                      <SelectItem key={partner} value={partner} className="text-white hover:bg-white/10">
+                        {partner}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           <div className="space-y-3 mt-4 overflow-y-auto flex-1 pr-2">
             {alerts.filter(alert => {
               const matchNIF = !filterNIF || alert.client_nif?.includes(filterNIF);
-              const matchPartner = !filterPartner || alert.partner_name?.toLowerCase().includes(filterPartner.toLowerCase());
+              const matchPartner = !filterPartner || filterPartner === 'all' || alert.partner_name === filterPartner;
               return matchNIF && matchPartner;
             }).length === 0 ? (
               <div className="text-center py-8 text-white/50">
@@ -860,7 +872,7 @@ export default function Dashboard() {
             ) : (
               alerts.filter(alert => {
                 const matchNIF = !filterNIF || alert.client_nif?.includes(filterNIF);
-                const matchPartner = !filterPartner || alert.partner_name?.toLowerCase().includes(filterPartner.toLowerCase());
+                const matchPartner = !filterPartner || filterPartner === 'all' || alert.partner_name === filterPartner;
                 return matchNIF && matchPartner;
               }).map((alert) => {
               const CategoryIcon = CATEGORY_ICONS[alert.category] || Zap;

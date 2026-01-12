@@ -81,6 +81,7 @@ export default function Dashboard() {
   const [showAlertsDialog, setShowAlertsDialog] = useState(false);
   const [filterNIF, setFilterNIF] = useState("");
   const [filterPartner, setFilterPartner] = useState("all");
+  const [refidPartners, setRefidPartners] = useState([]);
 
   useEffect(() => {
     fetchData();
@@ -283,6 +284,16 @@ export default function Dashboard() {
       const sortedAlerts = alertsWithDays.sort((a, b) => a.days_until_end - b.days_until_end);
 
       setAlerts(sortedAlerts);
+
+      const refidPartners = Array.from(
+        new Set(
+          sales
+            .filter(sale => sale.sale_type === 'refid' && sale.partner_name)
+            .map(sale => sale.partner_name)
+        )
+      ).sort();
+
+      setRefidPartners(refidPartners);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -762,15 +773,18 @@ export default function Dashboard() {
                       className="alert-item block"
                       data-testid={`alert-${alert.id}`}
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-3">
-                          <CategoryIcon className="text-[#c8f31d] mt-0.5" size={18} />
-                          <div>
-                            <p className="text-white font-medium">{alert.client_name}</p>
-                            <p className="text-white/50 text-sm">{alert.partner_name}</p>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <CategoryIcon className="text-[#c8f31d] mt-0.5 flex-shrink-0" size={18} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white font-medium truncate">{alert.client_name}</p>
+                            {alert.client_nif && (
+                              <p className="text-white/40 text-xs font-mono">{alert.client_nif}</p>
+                            )}
+                            <p className="text-white/50 text-sm truncate">{alert.partner_name}</p>
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right flex-shrink-0">
                           <p className="text-[#c8f31d] font-mono font-bold">
                             {alert.days_until_end} dias
                           </p>
@@ -847,13 +861,11 @@ export default function Dashboard() {
                 </SelectTrigger>
                 <SelectContent className="bg-[#0a3940] border-white/10">
                   <SelectItem value="all" className="text-white hover:bg-white/10">Todos os parceiros</SelectItem>
-                  {Array.from(new Set(alerts.map(alert => alert.partner_name).filter(Boolean)))
-                    .sort()
-                    .map(partner => (
-                      <SelectItem key={partner} value={partner} className="text-white hover:bg-white/10">
-                        {partner}
-                      </SelectItem>
-                    ))}
+                  {refidPartners.map(partner => (
+                    <SelectItem key={partner} value={partner} className="text-white hover:bg-white/10">
+                      {partner}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -892,8 +904,10 @@ export default function Dashboard() {
                       <CategoryIcon className="text-[#c8f31d] mt-0.5 flex-shrink-0" size={18} />
                       <div className="flex-1 min-w-0">
                         <p className="text-white font-medium truncate">{alert.client_name}</p>
-                        <p className="text-white/70 text-sm font-mono">NIF: {alert.client_nif}</p>
-                        <p className="text-white/50 text-sm truncate mt-0.5">{alert.partner_name}</p>
+                        {alert.client_nif && (
+                          <p className="text-white/40 text-xs font-mono">{alert.client_nif}</p>
+                        )}
+                        <p className="text-white/50 text-sm truncate">{alert.partner_name}</p>
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0">

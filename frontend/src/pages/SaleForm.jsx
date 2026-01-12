@@ -558,6 +558,14 @@ export default function SaleForm() {
     }
   };
 
+  const formatDateForDB = (date) => {
+    if (!date) return null;
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -673,7 +681,7 @@ export default function SaleForm() {
         commission_partner: parseFloat(formData.commission_partner) || 0,
         client_type: formData.client_type || null,
         portfolio_status: formData.portfolio_status || null,
-        sale_date: formData.sale_date ? formData.sale_date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        sale_date: formatDateForDB(formData.sale_date) || formatDateForDB(new Date()),
         solar_power: formData.solar_power ? parseFloat(formData.solar_power) : null,
         solar_panel_quantity: formData.solar_panel_quantity ? parseInt(formData.solar_panel_quantity) : null
       };

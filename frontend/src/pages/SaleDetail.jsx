@@ -284,6 +284,14 @@ export default function SaleDetail({ editMode = false }) {
     }
   }, [editOperatorId, editPartnerId, isEditing]);
 
+  const formatDateForDB = (date) => {
+    if (!date) return null;
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -299,8 +307,8 @@ export default function SaleDetail({ editMode = false }) {
         partner_id: editPartnerId,
         operator_id: editOperatorId,
         loyalty_months: finalLoyaltyMonths,
-        active_date: editActiveDate ? editActiveDate.toISOString() : null,
-        sale_date: editSaleDate ? editSaleDate.toISOString().split('T')[0] : null,
+        active_date: formatDateForDB(editActiveDate),
+        sale_date: formatDateForDB(editSaleDate),
         req: sale.category === "telecomunicacoes" ? editReq : null,
         client_email: editEmail,
         client_phone: editPhone,

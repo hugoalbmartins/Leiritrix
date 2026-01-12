@@ -150,7 +150,44 @@ export default function SaleForm() {
     fetchPartners();
     fetchSellers();
     fetchOperators();
+
+    const refidFromId = searchParams.get('refid_from');
+    if (refidFromId) {
+      loadRefidSale(refidFromId);
+    }
   }, []);
+
+  const loadRefidSale = async (saleId) => {
+    try {
+      const sale = await salesService.getSaleById(saleId);
+
+      setNifInput(sale.client_nif || "");
+      setShowForm(true);
+
+      setFormData(prev => ({
+        ...prev,
+        client_name: sale.client_name || "",
+        client_email: sale.client_email || "",
+        client_phone: sale.client_phone || "",
+        client_nif: sale.client_nif || "",
+        street_address: sale.street_address || "",
+        postal_code: sale.postal_code || "",
+        city: sale.city || "",
+        category: sale.category || "",
+        operator_id: sale.operator_id || "",
+        partner_id: sale.partner_id || "",
+        energy_type: sale.energy_type || "",
+        cpe: sale.cpe || "",
+        potencia: sale.potencia || "",
+        cui: sale.cui || "",
+        escalao: sale.escalao || "",
+        sale_type: "Refid"
+      }));
+    } catch (error) {
+      console.error("Error loading refid sale:", error);
+      toast.error("Erro ao carregar dados da venda original");
+    }
+  };
 
   const fetchPartners = async () => {
     try {

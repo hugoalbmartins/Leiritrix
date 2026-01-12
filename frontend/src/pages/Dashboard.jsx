@@ -287,9 +287,9 @@ export default function Dashboard() {
 
       const refidPartners = Array.from(
         new Set(
-          sales
-            .filter(sale => sale.sale_type === 'refid' && sale.partner_name)
-            .map(sale => sale.partner_name)
+          sortedAlerts
+            .filter(alert => alert.partner_name)
+            .map(alert => alert.partner_name)
         )
       ).sort();
 

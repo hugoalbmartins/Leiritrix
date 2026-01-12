@@ -115,6 +115,7 @@ export default function SaleDetail({ editMode = false }) {
   const [editCommissionPartner, setEditCommissionPartner] = useState("");
   const [editCommissionBackoffice, setEditCommissionBackoffice] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
   const [editAddress, setEditAddress] = useState("");
   const [editStreetAddress, setEditStreetAddress] = useState("");
   const [editPostalCode, setEditPostalCode] = useState("");
@@ -151,6 +152,7 @@ export default function SaleDetail({ editMode = false }) {
       setEditNotes(saleData.notes || "");
       setEditReq(saleData.req || "");
       setEditEmail(saleData.client_email || "");
+      setEditPhone(saleData.client_phone || "");
       setEditAddress(saleData.client_address || "");
       setEditStreetAddress(saleData.street_address || "");
       setEditPostalCode(saleData.postal_code || "");
@@ -301,6 +303,7 @@ export default function SaleDetail({ editMode = false }) {
         sale_date: editSaleDate ? editSaleDate.toISOString().split('T')[0] : null,
         req: sale.category === "telecomunicacoes" ? editReq : null,
         client_email: editEmail,
+        client_phone: editPhone,
         client_address: editAddress,
         street_address: editStreetAddress,
         postal_code: editPostalCode,
@@ -748,6 +751,17 @@ export default function SaleDetail({ editMode = false }) {
                   onChange={(e) => setEditEmail(e.target.value)}
                   className="form-input"
                   placeholder="email@exemplo.com"
+                />
+              </div>
+
+              <div>
+                <Label className="form-label">Telefone do Cliente</Label>
+                <Input
+                  type="tel"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  className="form-input"
+                  placeholder="+351 912 345 678"
                 />
               </div>
 

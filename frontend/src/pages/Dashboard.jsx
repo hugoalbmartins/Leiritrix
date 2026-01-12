@@ -8,6 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   TrendingUp,
   ShoppingCart,
   Euro,
@@ -69,6 +76,7 @@ export default function Dashboard() {
   const [hasHiddenOperators, setHasHiddenOperators] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [showAlertsDialog, setShowAlertsDialog] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -767,16 +775,72 @@ export default function Dashboard() {
             )}
             
             {alerts.length > 5 && (
-              <Link to="/sales?filter=alerts">
-                <Button variant="ghost" className="w-full mt-4 text-[#c8f31d] hover:bg-[#c8f31d]/10">
-                  Ver todos ({alerts.length})
-                  <ArrowRight size={16} className="ml-2" />
-                </Button>
-              </Link>
+              <Button
+                variant="ghost"
+                className="w-full mt-4 text-[#c8f31d] hover:bg-[#c8f31d]/10"
+                onClick={() => setShowAlertsDialog(true)}
+              >
+                Ver todos ({alerts.length})
+                <ArrowRight size={16} className="ml-2" />
+              </Button>
             )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Alerts Dialog */}
+      <Dialog open={showAlertsDialog} onOpenChange={setShowAlertsDialog}>
+        <DialogContent className="bg-[#082d32] border-white/10 max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white font-['Manrope'] text-xl flex items-center gap-2">
+              <AlertTriangle className="text-[#c8f31d]" size={24} />
+              Alertas de Fidelização ({alerts.length})
+            </DialogTitle>
+            <DialogDescription className="text-white/60">
+              Contratos ativos com fidelização a terminar nos próximos 7 meses
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 mt-4">
+            {alerts.map((alert) => {
+              const CategoryIcon = CATEGORY_ICONS[alert.category] || Zap;
+              const endDate = new Date(alert.loyalty_end_date);
+              const now = new Date();
+              const daysUntilEnd = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+
+              return (
+                <Link
+                  key={alert.id}
+                  to={`/sales/${alert.id}`}
+                  className="alert-item block"
+                  onClick={() => setShowAlertsDialog(false)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-3 flex-1">
+                      <CategoryIcon className="text-[#c8f31d] mt-0.5 flex-shrink-0" size={18} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-medium truncate">{alert.client_name}</p>
+                        <p className="text-white/50 text-sm truncate">{alert.partner_name}</p>
+                        {alert.client_address && (
+                          <p className="text-white/40 text-xs mt-1 truncate">{alert.client_address}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-4">
+                      <p className="text-[#c8f31d] font-mono font-bold">
+                        {daysUntilEnd} dias
+                      </p>
+                      <p className="text-white/40 text-xs flex items-center gap-1 justify-end">
+                        <Calendar size={12} />
+                        {endDate.toLocaleDateString('pt-PT')}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

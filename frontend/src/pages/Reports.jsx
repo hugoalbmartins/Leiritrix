@@ -39,6 +39,7 @@ const CATEGORY_MAP = {
 };
 
 export default function Reports() {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState(null);
   const [sellers, setSellers] = useState([]);
@@ -96,7 +97,13 @@ export default function Reports() {
         sales: salesData,
         total_sales: salesData.length,
         total_value: salesData.reduce((sum, s) => sum + (s.contract_value || 0), 0),
-        total_commission: salesData.reduce((sum, s) => sum + (s.commission || 0), 0),
+        total_commission: salesData.reduce((sum, s) => {
+          const shouldShowCommission =
+            user.role === 'admin' ||
+            (user.role === 'backoffice' && s.operators?.commission_visible_to_bo);
+
+          return sum + (shouldShowCommission ? (s.commission || 0) : 0);
+        }, 0),
         by_category: {
           energia: salesData.filter(s => s.category === 'energia').length,
           telecomunicacoes: salesData.filter(s => s.category === 'telecomunicacoes').length,
@@ -130,19 +137,25 @@ export default function Reports() {
         "Cliente", "NIF", "Categoria", "Tipo", "Parceiro",
         "Valor Contrato", "Comissão", "Estado", "Vendedor", "Data de Venda", "Data de Ativação"
       ],
-      ...report.sales.map(sale => [
-        sale.client_name,
-        sale.client_nif || "",
-        CATEGORY_MAP[sale.category] || sale.category,
-        sale.sale_type || "",
-        sale.partner_name || "",
-        sale.contract_value || 0,
-        sale.commission || 0,
-        STATUS_MAP[sale.status]?.label || sale.status,
-        sale.seller_name || "",
-        sale.sale_date ? new Date(sale.sale_date).toLocaleDateString('pt-PT') : new Date(sale.created_at).toLocaleDateString('pt-PT'),
-        sale.active_date ? new Date(sale.active_date).toLocaleDateString('pt-PT') : ""
-      ])
+      ...report.sales.map(sale => {
+        const shouldShowCommission =
+          user.role === 'admin' ||
+          (user.role === 'backoffice' && sale.operators?.commission_visible_to_bo);
+
+        return [
+          sale.client_name,
+          sale.client_nif || "",
+          CATEGORY_MAP[sale.category] || sale.category,
+          sale.sale_type || "",
+          sale.partner_name || "",
+          sale.contract_value || 0,
+          shouldShowCommission ? (sale.commission || 0) : "-",
+          STATUS_MAP[sale.status]?.label || sale.status,
+          sale.seller_name || "",
+          sale.sale_date ? new Date(sale.sale_date).toLocaleDateString('pt-PT') : new Date(sale.created_at).toLocaleDateString('pt-PT'),
+          sale.active_date ? new Date(sale.active_date).toLocaleDateString('pt-PT') : ""
+        ];
+      })
     ];
 
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
@@ -363,13 +376,25 @@ export default function Reports() {
                             {new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(sale.contract_value)}
                           </td>
                           <td className="font-mono">
-                            {sale.commission !== null && sale.commission !== undefined ? (
-                              <span className="text-green-400">
-                                {new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(sale.commission)}
-                              </span>
-                            ) : (
-                              <span className="text-white/30">-</span>
-                            )}
+                            {(() => {
+                              const shouldShowCommission =
+                                user.role === 'admin' ||
+                                (user.role === 'backoffice' && sale.operators?.commission_visible_to_bo);
+
+                              if (!shouldShowCommission) {
+                                return <span className="text-white/30">-</span>;
+                              }
+
+                              if (sale.commission !== null && sale.commission !== undefined && sale.commission > 0) {
+                                return (
+                                  <span className="text-green-400">
+                                    {new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(sale.commission)}
+                                  </span>
+                                );
+                              }
+
+                              return <span className="text-white/30">-</span>;
+                            })()}
                           </td>
                           <td>
                             <Badge className={`${statusInfo?.color} border text-xs`}>

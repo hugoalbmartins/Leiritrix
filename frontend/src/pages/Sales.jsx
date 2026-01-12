@@ -579,7 +579,7 @@ export default function Sales() {
                             return <span className="text-white/30">-</span>;
                           }
 
-                          if (sale.commission !== null && sale.commission !== undefined) {
+                          if (sale.commission !== null && sale.commission !== undefined && sale.commission > 0) {
                             const colorClass = user.role === 'admin' ? 'text-[#c8f31d]' : 'text-green-400';
                             return (
                               <span className={colorClass}>

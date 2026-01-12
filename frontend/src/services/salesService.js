@@ -42,11 +42,19 @@ export const salesService = {
 
     if (error) throw error;
 
-    const mappedData = data.map(sale => ({
-      ...sale,
-      partner_name: sale.partners?.name || '',
-      seller_name: sale.users?.name || ''
-    }));
+    const mappedData = data.map(sale => {
+      const commissionTotal =
+        (sale.commission_seller || 0) +
+        (sale.commission_partner || 0) +
+        (sale.commission_backoffice || 0);
+
+      return {
+        ...sale,
+        partner_name: sale.partners?.name || '',
+        seller_name: sale.users?.name || '',
+        commission: commissionTotal
+      };
+    });
 
     return mappedData;
   },
@@ -76,10 +84,16 @@ export const salesService = {
     if (error) throw error;
 
     if (data) {
+      const commissionTotal =
+        (data.commission_seller || 0) +
+        (data.commission_partner || 0) +
+        (data.commission_backoffice || 0);
+
       return {
         ...data,
         partner_name: data.partners?.name || '',
-        seller_name: data.users?.name || ''
+        seller_name: data.users?.name || '',
+        commission: commissionTotal
       };
     }
 
@@ -221,11 +235,19 @@ export const salesService = {
 
     if (error) throw error;
 
-    const mappedData = (data || []).map(sale => ({
-      ...sale,
-      partner_name: sale.partners?.name || '',
-      seller_name: sale.users?.name || ''
-    }));
+    const mappedData = (data || []).map(sale => {
+      const commissionTotal =
+        (sale.commission_seller || 0) +
+        (sale.commission_partner || 0) +
+        (sale.commission_backoffice || 0);
+
+      return {
+        ...sale,
+        partner_name: sale.partners?.name || '',
+        seller_name: sale.users?.name || '',
+        commission: commissionTotal
+      };
+    });
 
     return mappedData;
   },

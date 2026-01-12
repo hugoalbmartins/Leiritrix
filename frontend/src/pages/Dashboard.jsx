@@ -7,6 +7,7 @@ import { operatorsService } from "@/services/operatorsService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -77,6 +78,8 @@ export default function Dashboard() {
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [showAlertsDialog, setShowAlertsDialog] = useState(false);
+  const [filterNIF, setFilterNIF] = useState("");
+  const [filterPartner, setFilterPartner] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -265,7 +268,17 @@ export default function Dashboard() {
       });
 
       setMonthlyStats(yoyData);
-      setAlerts(expiringSoon);
+
+      const sortedAlerts = expiringSoon.sort((a, b) => {
+        const endDateA = new Date(a.loyalty_end_date);
+        const endDateB = new Date(b.loyalty_end_date);
+        const nowDate = new Date();
+        const daysA = Math.ceil((endDateA - nowDate) / (1000 * 60 * 60 * 24));
+        const daysB = Math.ceil((endDateB - nowDate) / (1000 * 60 * 60 * 24));
+        return daysA - daysB;
+      });
+
+      setAlerts(sortedAlerts);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -789,19 +802,67 @@ export default function Dashboard() {
       </div>
 
       {/* Alerts Dialog */}
-      <Dialog open={showAlertsDialog} onOpenChange={setShowAlertsDialog}>
-        <DialogContent className="bg-[#082d32] border-white/10 max-w-3xl max-h-[80vh] overflow-y-auto">
+      <Dialog open={showAlertsDialog} onOpenChange={(open) => {
+        setShowAlertsDialog(open);
+        if (!open) {
+          setFilterNIF("");
+          setFilterPartner("");
+        }
+      }}>
+        <DialogContent className="bg-[#082d32] border-white/10 max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-white font-['Manrope'] text-xl flex items-center gap-2">
               <AlertTriangle className="text-[#c8f31d]" size={24} />
-              Alertas de Fidelização ({alerts.length})
+              Alertas de Fidelização ({alerts.filter(alert => {
+                const matchNIF = !filterNIF || alert.client_nif?.includes(filterNIF);
+                const matchPartner = !filterPartner || alert.partner_name?.toLowerCase().includes(filterPartner.toLowerCase());
+                return matchNIF && matchPartner;
+              }).length})
             </DialogTitle>
             <DialogDescription className="text-white/60">
               Contratos ativos com fidelização a terminar nos próximos 7 meses
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 mt-4">
-            {alerts.map((alert) => {
+
+          <div className="grid grid-cols-2 gap-3 mt-4">
+            <div>
+              <label className="text-white/60 text-sm mb-1 block">Filtrar por NIF</label>
+              <Input
+                type="text"
+                placeholder="Digite o NIF..."
+                value={filterNIF}
+                onChange={(e) => setFilterNIF(e.target.value)}
+                className="bg-[#0a3940] border-white/10 text-white placeholder:text-white/30"
+              />
+            </div>
+            <div>
+              <label className="text-white/60 text-sm mb-1 block">Filtrar por Parceiro</label>
+              <Input
+                type="text"
+                placeholder="Digite o nome do parceiro..."
+                value={filterPartner}
+                onChange={(e) => setFilterPartner(e.target.value)}
+                className="bg-[#0a3940] border-white/10 text-white placeholder:text-white/30"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-3 mt-4 overflow-y-auto flex-1 pr-2">
+            {alerts.filter(alert => {
+              const matchNIF = !filterNIF || alert.client_nif?.includes(filterNIF);
+              const matchPartner = !filterPartner || alert.partner_name?.toLowerCase().includes(filterPartner.toLowerCase());
+              return matchNIF && matchPartner;
+            }).length === 0 ? (
+              <div className="text-center py-8 text-white/50">
+                <AlertTriangle size={32} className="mx-auto mb-2 opacity-50" />
+                <p>Nenhum alerta encontrado com os filtros aplicados</p>
+              </div>
+            ) : (
+              alerts.filter(alert => {
+                const matchNIF = !filterNIF || alert.client_nif?.includes(filterNIF);
+                const matchPartner = !filterPartner || alert.partner_name?.toLowerCase().includes(filterPartner.toLowerCase());
+                return matchNIF && matchPartner;
+              }).map((alert) => {
               const CategoryIcon = CATEGORY_ICONS[alert.category] || Zap;
               const endDate = new Date(alert.loyalty_end_date);
               const now = new Date();
@@ -814,22 +875,20 @@ export default function Dashboard() {
                   className="alert-item block"
                   onClick={() => setShowAlertsDialog(false)}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3 flex-1">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
                       <CategoryIcon className="text-[#c8f31d] mt-0.5 flex-shrink-0" size={18} />
                       <div className="flex-1 min-w-0">
                         <p className="text-white font-medium truncate">{alert.client_name}</p>
-                        <p className="text-white/50 text-sm truncate">{alert.partner_name}</p>
-                        {alert.client_address && (
-                          <p className="text-white/40 text-xs mt-1 truncate">{alert.client_address}</p>
-                        )}
+                        <p className="text-white/70 text-sm font-mono">NIF: {alert.client_nif}</p>
+                        <p className="text-white/50 text-sm truncate mt-0.5">{alert.partner_name}</p>
                       </div>
                     </div>
-                    <div className="text-right flex-shrink-0 ml-4">
-                      <p className="text-[#c8f31d] font-mono font-bold">
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-[#c8f31d] font-mono font-bold text-lg">
                         {daysUntilEnd} dias
                       </p>
-                      <p className="text-white/40 text-xs flex items-center gap-1 justify-end">
+                      <p className="text-white/40 text-xs flex items-center gap-1 justify-end mt-1">
                         <Calendar size={12} />
                         {endDate.toLocaleDateString('pt-PT')}
                       </p>
@@ -837,7 +896,8 @@ export default function Dashboard() {
                   </div>
                 </Link>
               );
-            })}
+            })
+            )}
           </div>
         </DialogContent>
       </Dialog>

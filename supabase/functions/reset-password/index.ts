@@ -21,9 +21,11 @@ Deno.serve(async (req: Request) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
+    console.log("Authorization header:", authHeader ? "presente" : "ausente");
+
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: "Não autorizado" }),
+        JSON.stringify({ error: "Não autorizado - sem header" }),
         {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -51,9 +53,19 @@ Deno.serve(async (req: Request) => {
 
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
 
+    console.log("Auth result:", {
+      userId: user?.id,
+      email: user?.email,
+      hasError: !!authError,
+      errorMessage: authError?.message
+    });
+
     if (authError || !user) {
       return new Response(
-        JSON.stringify({ error: "Não autorizado - token inválido" }),
+        JSON.stringify({
+          error: "Não autorizado - token inválido",
+          details: authError?.message
+        }),
         {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -66,6 +78,13 @@ Deno.serve(async (req: Request) => {
       .select("role")
       .eq("id", user.id)
       .single();
+
+    console.log("User lookup:", {
+      userId: user.id,
+      found: !!currentUser,
+      role: currentUser?.role,
+      error: userError?.message
+    });
 
     if (userError || !currentUser || currentUser.role !== "admin") {
       return new Response(

@@ -101,4 +101,22 @@ export const usersService = {
 
     return stats;
   },
+
+  async resetUserPassword(userId, newPassword) {
+    const { data, error } = await supabase.auth.admin.updateUserById(
+      userId,
+      { password: newPassword }
+    );
+
+    if (error) throw error;
+
+    const { error: profileError } = await supabase
+      .from('users')
+      .update({ must_change_password: true })
+      .eq('id', userId);
+
+    if (profileError) throw profileError;
+
+    return data;
+  },
 };

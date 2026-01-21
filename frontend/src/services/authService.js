@@ -3,8 +3,9 @@ import { supabase } from '@/lib/supabase';
 export const authService = {
   async signIn(email, password) {
     try {
+      const normalizedEmail = email.toLowerCase().trim();
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: normalizedEmail,
         password,
       });
 

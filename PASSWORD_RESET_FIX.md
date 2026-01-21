@@ -1,22 +1,34 @@
 # Correção do Reset de Password
 
-## Problema Identificado
+## Problemas Identificados
 
-O sistema estava tentando usar a Admin API do Supabase (`supabase.auth.admin.updateUserById`) diretamente no frontend, o que resultava em erro 403 (Forbidden) porque:
+### Problema 1: Admin API no Frontend (403 Forbidden)
+O sistema estava tentando usar a Admin API do Supabase (`supabase.auth.admin.updateUserById`) diretamente no frontend, o que resultava em erro 403 porque:
 
 1. A Admin API requer privilégios elevados
 2. Não pode ser chamada diretamente do frontend por questões de segurança
 3. O erro era: "User not allowed" / "not_admin"
 
+### Problema 2: Validação de Token com Service Role (401 Unauthorized)
+A Edge Function estava usando SERVICE_ROLE_KEY para validar o token do utilizador, causando erro 401 porque:
+
+1. O token JWT do utilizador é criado com ANON_KEY
+2. SERVICE_ROLE_KEY não pode validar tokens criados com ANON_KEY
+3. É necessário usar ANON_KEY para validação e SERVICE_ROLE_KEY apenas para operações privilegiadas
+
 ## Solução Implementada
 
 ### 1. Edge Function Criada: `reset-password`
 
-Criada uma Edge Function segura que:
-- Executa no servidor (backend)
-- Tem acesso à Service Role Key (privilégios de admin)
-- Valida autenticação do utilizador que faz o pedido
+Criada uma Edge Function segura que usa **dois clientes Supabase**:
+
+**Cliente de Autenticação (ANON_KEY)**:
+- Valida o token JWT do utilizador autenticado
 - Verifica se o utilizador tem role "admin"
+- Garante que apenas admins podem chamar a função
+
+**Cliente Admin (SERVICE_ROLE_KEY)**:
+- Executa operações privilegiadas
 - Reseta a password do utilizador target
 - Define `must_change_password: true` no perfil
 
@@ -36,13 +48,17 @@ Atualizado `usersService.resetUserPassword()` para:
 1. **Admin clica em "Resetar Password"** na interface de utilizadores
 2. **Frontend chama** `usersService.resetUserPassword(userId, newPassword)`
 3. **Pedido vai para** Edge Function: `POST /functions/v1/reset-password`
-4. **Edge Function valida**:
-   - Token de autenticação
+4. **Edge Function valida com Cliente ANON_KEY**:
+   - Token de autenticação do utilizador
    - Role do utilizador (deve ser "admin")
-5. **Edge Function executa**:
-   - Reset da password via Admin API (com Service Role Key)
+5. **Edge Function executa com Cliente SERVICE_ROLE_KEY**:
+   - Reset da password via Admin API
    - Update do campo `must_change_password: true`
 6. **Resposta retorna** para o frontend com sucesso/erro
+
+**Separação de Responsabilidades**:
+- ANON_KEY: Autenticação e autorização
+- SERVICE_ROLE_KEY: Operações privilegiadas
 
 ## Segurança
 
@@ -75,5 +91,18 @@ Para testar o reset de password:
 
 - Edge Function deployada com `verify_jwt: true` (requer autenticação)
 - CORS configurado para aceitar pedidos do frontend
-- Usa Service Role Key para operações privilegiadas
+- Usa **dois clientes Supabase** para separar responsabilidades:
+  - Cliente ANON_KEY: validação de autenticação
+  - Cliente SERVICE_ROLE_KEY: operações privilegiadas
 - Compatível com políticas RLS do Supabase
+
+## Histórico de Correções
+
+### v1 (Inicial)
+- Erro 403: Tentativa de usar Admin API no frontend
+
+### v2 (Correção 401)
+- Correção: Separação de clientes ANON_KEY e SERVICE_ROLE_KEY
+- ANON_KEY valida o token JWT do utilizador
+- SERVICE_ROLE_KEY executa operações Admin
+- Problema resolvido: erro 401 Unauthorized eliminado

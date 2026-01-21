@@ -20,17 +20,6 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    );
-
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -43,11 +32,28 @@ Deno.serve(async (req: Request) => {
     }
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+
+    const supabaseAuth = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+        global: {
+          headers: {
+            Authorization: authHeader,
+          },
+        },
+      }
+    );
+
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
 
     if (authError || !user) {
       return new Response(
-        JSON.stringify({ error: "Não autorizado" }),
+        JSON.stringify({ error: "Não autorizado - token inválido" }),
         {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -55,7 +61,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { data: currentUser, error: userError } = await supabaseClient
+    const { data: currentUser, error: userError } = await supabaseAuth
       .from("users")
       .select("role")
       .eq("id", user.id)
@@ -71,6 +77,17 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    );
+
     const { userId, newPassword }: ResetPasswordRequest = await req.json();
 
     if (!userId || !newPassword) {
@@ -83,7 +100,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { data, error } = await supabaseClient.auth.admin.updateUserById(
+    const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
       userId,
       { password: newPassword }
     );
@@ -98,7 +115,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { error: profileError } = await supabaseClient
+    const { error: profileError } = await supabaseAdmin
       .from("users")
       .update({ must_change_password: true })
       .eq("id", userId);

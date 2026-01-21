@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext } from "react";
 import "@/App.css";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { authService } from "@/services/authService";
@@ -73,26 +73,61 @@ const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
+      console.log('[Logout] Iniciando logout...');
+
+      // Fazer logout no Supabase
       await authService.signOut();
+      console.log('[Logout] Supabase signOut concluído');
+
+      // Limpar estado local
       setUser(null);
       setShowPasswordChange(false);
+      console.log('[Logout] Estado local limpo');
+
+      // Limpar localStorage (se houver dados cached)
+      try {
+        localStorage.removeItem('supabase.auth.token');
+      } catch (e) {
+        console.warn('[Logout] Erro ao limpar localStorage:', e);
+      }
+
       toast.success("Logout efetuado com sucesso");
-      window.location.href = '/login';
+      console.log('[Logout] Redirecionando para /login...');
+
+      // Usar replace para forçar recarregamento completo
+      window.location.replace('/login');
     } catch (error) {
-      toast.error("Erro ao fazer logout");
+      console.error('[Logout] Erro durante logout:', error);
+      toast.error("Erro ao fazer logout: " + error.message);
+
+      // Mesmo com erro, tentar limpar e redirecionar
+      setUser(null);
+      setShowPasswordChange(false);
+      window.location.replace('/login');
     }
   };
 
   const handleIdleTimeout = async () => {
     try {
+      console.log('[Idle Timeout] Sessão expirada por inatividade');
       await authService.signOut();
       setUser(null);
       setShowPasswordChange(false);
+
+      // Limpar localStorage
+      try {
+        localStorage.removeItem('supabase.auth.token');
+      } catch (e) {
+        console.warn('[Idle Timeout] Erro ao limpar localStorage:', e);
+      }
+
       toast.warning("Sessão expirada por inatividade");
-      window.location.href = '/login';
+      window.location.replace('/login');
     } catch (error) {
-      console.error("Error during idle logout:", error);
-      window.location.href = '/login';
+      console.error("[Idle Timeout] Erro durante logout:", error);
+      setUser(null);
+      setShowPasswordChange(false);
+      window.location.replace('/login');
     }
   };
 

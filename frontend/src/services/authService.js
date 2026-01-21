@@ -83,8 +83,28 @@ export const authService = {
   },
 
   async signOut() {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    try {
+      console.log('[AuthService] Iniciando signOut no Supabase...');
+
+      // Fazer logout usando o escopo 'local' para limpar apenas o dispositivo atual
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+
+      if (error) {
+        console.error('[AuthService] Erro no signOut:', error);
+        throw error;
+      }
+
+      console.log('[AuthService] SignOut completado com sucesso');
+    } catch (error) {
+      console.error('[AuthService] Exceção durante signOut:', error);
+      // Mesmo com erro, vamos tentar limpar a sessão local
+      try {
+        localStorage.removeItem('sb-kzvzjrgmqneqygwfihzw-auth-token');
+      } catch (e) {
+        console.error('[AuthService] Erro ao limpar token manual:', e);
+      }
+      throw error;
+    }
   },
 
   async getCurrentUser() {

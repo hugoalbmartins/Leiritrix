@@ -23,6 +23,7 @@ export const Layout = () => {
   const { user, logout, isAdmin, isAdminOrBackoffice } = useAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, show: true },
@@ -52,6 +53,18 @@ export const Layout = () => {
   };
 
   const badge = getRoleBadge(user?.role);
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Erro no logout:', error);
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#0d474f]">
@@ -106,13 +119,14 @@ export const Layout = () => {
               </span>
             </div>
             <Button
-              onClick={logout}
+              onClick={handleLogout}
               variant="ghost"
               className="w-full justify-start text-white/70 hover:text-white hover:bg-white/5"
               data-testid="logout-btn"
+              disabled={isLoggingOut}
             >
               <LogOut size={18} className="mr-2" />
-              Terminar Sessão
+              {isLoggingOut ? "A terminar..." : "Terminar Sessão"}
             </Button>
           </div>
         </div>

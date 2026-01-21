@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/App";
 import { usersService } from "@/services/usersService";
 import { authService } from "@/services/authService";
+import { emailValidator } from "@/utils/emailValidator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -139,6 +140,12 @@ export default function Users() {
       return;
     }
 
+    const emailError = emailValidator.getValidationError(formData.email);
+    if (emailError) {
+      toast.error(emailError);
+      return;
+    }
+
     if (!editingUser && !formData.password) {
       toast.error("Password é obrigatória para novos utilizadores");
       return;
@@ -149,7 +156,7 @@ export default function Users() {
       return;
     }
 
-    const normalizedEmail = formData.email.toLowerCase().trim();
+    const normalizedEmail = emailValidator.normalize(formData.email);
 
     setSaving(true);
     try {

@@ -1,9 +1,15 @@
 import { supabase } from '@/lib/supabase';
+import { emailValidator } from '@/utils/emailValidator';
 
 export const authService = {
   async signIn(email, password) {
     try {
-      const normalizedEmail = email.toLowerCase().trim();
+      const normalizedEmail = emailValidator.normalize(email);
+
+      if (!emailValidator.isValid(normalizedEmail)) {
+        throw new Error('Email inválido');
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password,
@@ -37,8 +43,10 @@ export const authService = {
   },
 
   async signUp(email, password, userData) {
+    const normalizedEmail = emailValidator.validateAndNormalize(email);
+
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
+      email: normalizedEmail,
       password,
     });
 
@@ -47,7 +55,7 @@ export const authService = {
     if (authData.user) {
       const insertData = {
         id: authData.user.id,
-        email: userData.email,
+        email: normalizedEmail,
         name: userData.name,
         role: userData.role || 'vendedor',
         active: true,

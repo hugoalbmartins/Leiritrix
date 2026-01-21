@@ -103,20 +103,32 @@ export const usersService = {
   },
 
   async resetUserPassword(userId, newPassword) {
-    const { data, error } = await supabase.auth.admin.updateUserById(
-      userId,
-      { password: newPassword }
-    );
+    const { data: { session } } = await supabase.auth.getSession();
 
-    if (error) throw error;
+    if (!session) {
+      throw new Error('Não autenticado');
+    }
 
-    const { error: profileError } = await supabase
-      .from('users')
-      .update({ must_change_password: true })
-      .eq('id', userId);
+    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/reset-password`;
 
-    if (profileError) throw profileError;
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId,
+        newPassword,
+      }),
+    });
 
-    return data;
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Erro ao resetar password');
+    }
+
+    return result.data;
   },
 };

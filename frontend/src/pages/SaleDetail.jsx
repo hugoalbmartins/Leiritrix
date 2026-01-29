@@ -140,6 +140,7 @@ export default function SaleDetail({ editMode = false }) {
   const [allowCommissionOverride, setAllowCommissionOverride] = useState(false);
   const [commissionType, setCommissionType] = useState("manual");
   const [isEditing, setIsEditing] = useState(editMode);
+  const [recalculating, setRecalculating] = useState(false);
 
   const fetchSale = useCallback(async () => {
     try {
@@ -251,6 +252,71 @@ export default function SaleDetail({ editMode = false }) {
       console.error("Error checking commission type:", error);
       setCommissionType("manual");
       setAvailableSaleTypes(SALE_TYPES);
+    }
+  };
+
+  const handleRecalculateCommissions = async () => {
+    if (!sale) return;
+
+    setRecalculating(true);
+    try {
+      const operatorId = sale.operator_id;
+      const partnerId = sale.partner_id;
+      const saleType = sale.sale_type;
+      const clientNif = sale.client_nif;
+      const loyaltyMonths = sale.loyalty_months || 0;
+      const clientCategoryId = sale.client_category_id;
+      const clientType = sale.client_type;
+      const portfolioStatus = sale.portfolio_status;
+      const potencia = sale.potencia;
+
+      if (!operatorId || !partnerId || !saleType) {
+        toast.error("Dados insuficientes para calcular comissões");
+        return;
+      }
+
+      const rule = await commissionsService.findApplicableRule({
+        operatorId,
+        partnerId,
+        saleType,
+        clientNif,
+        loyaltyMonths,
+        clientCategoryId,
+        clientType,
+        portfolioStatus
+      });
+
+      if (!rule || rule.isManual) {
+        toast.warning("Esta operadora/parceiro usa comissões manuais");
+        return;
+      }
+
+      const commissions = await commissionsService.calculateCommission({
+        rule,
+        monthlyValue: parseFloat(sale.contract_value) || 0,
+        previousMonthlyValue: parseFloat(sale.previous_monthly_value) || 0,
+        newMonthlyValue: parseFloat(sale.new_monthly_value) || 0,
+        saleType,
+        quantity: 1,
+        potencia
+      });
+
+      const updatePayload = {
+        commission_seller: commissions.seller,
+        commission_partner: commissions.partner
+      };
+
+      const updated = await salesService.updateSale(sale.id, updatePayload);
+      setSale(updated);
+      setEditCommissionSeller(updated.commission_seller?.toString() || "0");
+      setEditCommissionPartner(updated.commission_partner?.toString() || "0");
+
+      toast.success(`Comissões recalculadas: Vendedor: €${commissions.seller.toFixed(2)}, Parceiro: €${commissions.partner.toFixed(2)}`);
+    } catch (error) {
+      console.error("Error recalculating commissions:", error);
+      toast.error("Erro ao recalcular comissões: " + error.message);
+    } finally {
+      setRecalculating(false);
     }
   };
 
@@ -419,14 +485,26 @@ export default function SaleDetail({ editMode = false }) {
           </div>
         </div>
         {!isEditing ? (
-          <Button 
-            onClick={() => setIsEditing(true)}
-            className="btn-primary btn-primary-glow flex items-center gap-2" 
-            data-testid="edit-sale-btn"
-          >
-            <Edit2 size={16} />
-            Editar
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleRecalculateCommissions}
+              disabled={recalculating}
+              variant="outline"
+              className="border-[#c8f31d]/30 text-[#c8f31d] hover:bg-[#c8f31d]/10 flex items-center gap-2"
+              data-testid="recalculate-commission-btn"
+            >
+              {recalculating ? <Loader2 size={16} className="animate-spin" /> : <Euro size={16} />}
+              Recalcular Comissões
+            </Button>
+            <Button
+              onClick={() => setIsEditing(true)}
+              className="btn-primary btn-primary-glow flex items-center gap-2"
+              data-testid="edit-sale-btn"
+            >
+              <Edit2 size={16} />
+              Editar
+            </Button>
+          </div>
         ) : (
           <div className="flex gap-2">
             <Button

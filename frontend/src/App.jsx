@@ -7,6 +7,7 @@ import { authService } from "@/services/authService";
 import { PasswordChangeModal } from "@/components/PasswordChangeModal";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 import InstallPrompt from "@/components/InstallPrompt";
+import BackupAlert from "@/components/BackupAlert";
 
 // Pages
 import Login from "@/pages/Login";
@@ -271,6 +272,7 @@ function App() {
         />
         <AppRoutes />
         <InstallPrompt />
+        <BackupAlert />
       </AuthProvider>
     </BrowserRouter>
   );

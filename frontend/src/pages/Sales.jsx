@@ -28,9 +28,11 @@ import {
   Filter,
   ArrowUpDown,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Download
 } from "lucide-react";
 import { toast } from "sonner";
+import { backupsService } from "@/services/backupsService";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -72,6 +74,7 @@ export default function Sales() {
   const [partners, setPartners] = useState([]);
   const [operators, setOperators] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   const [searchType, setSearchType] = useState("none");
   const [searchText, setSearchText] = useState("");
@@ -200,6 +203,19 @@ export default function Sales() {
     setCurrentPage(1);
   };
 
+  const handleExportBackup = async () => {
+    setExporting(true);
+    try {
+      const result = await backupsService.exportSalesToExcel(user.id, user.name);
+      toast.success(`Backup concluido: ${result.totalSales} vendas exportadas`);
+    } catch (error) {
+      console.error('Error exporting backup:', error);
+      toast.error('Erro ao exportar backup');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleSort = (column) => {
     if (sortColumn === column) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
@@ -265,12 +281,23 @@ export default function Sales() {
           <h1 className="text-2xl font-bold text-white font-['Manrope']">Vendas</h1>
           <p className="text-white/50 text-sm mt-1">{sales.length} registos encontrados</p>
         </div>
-        <Link to="/sales/new">
-          <Button className="btn-primary btn-primary-glow flex items-center gap-2" data-testid="new-sale-btn">
-            <Plus size={18} />
-            Nova Venda
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={handleExportBackup}
+            disabled={exporting}
+            variant="outline"
+            className="bg-white/5 border-white/10 text-white hover:bg-white/10 flex items-center gap-2"
+          >
+            <Download size={18} />
+            {exporting ? 'A exportar...' : 'Backup Excel'}
           </Button>
-        </Link>
+          <Link to="/sales/new">
+            <Button className="btn-primary btn-primary-glow flex items-center gap-2" data-testid="new-sale-btn">
+              <Plus size={18} />
+              Nova Venda
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}

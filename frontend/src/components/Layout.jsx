@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import NotificationBell from "@/components/NotificationBell";
 import NotificationSettings from "@/components/NotificationSettings";
 
-const LOGO_URL = "/leiritrix.png";
+const LOGO_URL = "/favicon.png";
 
 export const Layout = () => {
   const { user, logout, isAdmin, isAdminOrBackoffice } = useAuth();

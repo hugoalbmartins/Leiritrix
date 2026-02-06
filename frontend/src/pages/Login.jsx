@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Loader2, Lock, Mail } from "lucide-react";
 import { authService } from "@/services/authService";
 
-const LOGO_URL = "/favicon.png";
+const LOGO_URL = "/leiritrix.png";
 
 export default function Login() {
   const [email, setEmail] = useState("");

@@ -13,10 +13,12 @@ import {
   Building2,
   Radio,
   Settings,
-  Target
+  Target,
+  Bell
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import NotificationBell from "@/components/NotificationBell";
+import NotificationSettings from "@/components/NotificationSettings";
 
 const LOGO_URL = "/leiritrix.png";
 
@@ -25,6 +27,7 @@ export const Layout = () => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showNotifSettings, setShowNotifSettings] = useState(false);
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, show: true },
@@ -142,7 +145,15 @@ export const Layout = () => {
           <h1 className="text-xl font-bold text-white font-['Manrope']">
             {navigation.find(item => isActive(item.href))?.name || "CRM Leiritrix"}
           </h1>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowNotifSettings(true)}
+              className="text-white/70 hover:text-white hover:bg-white/5"
+            >
+              <Settings size={20} />
+            </Button>
             <NotificationBell userId={user?.id} />
           </div>
         </div>
@@ -155,11 +166,17 @@ export const Layout = () => {
 
       {/* Mobile overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="lg:hidden fixed inset-0 bg-black/50 z-30"
           onClick={() => setSidebarOpen(false)}
         />
       )}
+
+      <NotificationSettings
+        open={showNotifSettings}
+        onOpenChange={setShowNotifSettings}
+        userId={user?.id}
+      />
     </div>
   );
 };

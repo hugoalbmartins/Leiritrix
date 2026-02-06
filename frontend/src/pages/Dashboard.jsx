@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { salesService } from "@/services/salesService";
 import { usersService } from "@/services/usersService";
 import { operatorsService } from "@/services/operatorsService";
+import { leadsService } from "@/services/leadsService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,8 @@ import {
   Clock,
   CheckCircle,
   Users,
-  EyeOff
+  EyeOff,
+  Target
 } from "lucide-react";
 import {
   LineChart,
@@ -82,6 +84,8 @@ export default function Dashboard() {
   const [filterNIF, setFilterNIF] = useState("");
   const [filterPartner, setFilterPartner] = useState("all");
   const [refidPartners, setRefidPartners] = useState([]);
+  const [leadAlerts, setLeadAlerts] = useState([]);
+  const [leadStats, setLeadStats] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -294,6 +298,17 @@ export default function Dashboard() {
       ).sort();
 
       setRefidPartners(refidPartners);
+
+      try {
+        const [leadsAlertData, leadsStatsData] = await Promise.all([
+          leadsService.getLeadAlerts(),
+          leadsService.getLeadStats(),
+        ]);
+        setLeadAlerts(leadsAlertData);
+        setLeadStats(leadsStatsData);
+      } catch (leadError) {
+        console.error("Error fetching lead alerts:", leadError);
+      }
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -817,6 +832,123 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
+      </div>
+
+      {/* Lead Alerts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="card-leiritrix" data-testid="lead-alerts">
+          <CardHeader className="border-b border-white/5 pb-4 flex flex-row items-center justify-between">
+            <CardTitle className="text-white font-['Manrope'] text-lg flex items-center gap-2">
+              <Target className="text-[#c8f31d]" size={20} />
+              Alertas de Leads
+            </CardTitle>
+            <Badge className="bg-[#c8f31d] text-[#0d474f]">
+              {leadAlerts.length}
+            </Badge>
+          </CardHeader>
+          <CardContent className="pt-4 max-h-72 overflow-y-auto">
+            {leadAlerts.length > 0 ? (
+              <div className="space-y-3">
+                {leadAlerts.slice(0, 5).map((lead) => {
+                  const isOverdue = lead.next_contact_date && new Date(lead.next_contact_date) < new Date();
+                  const priorityColors = {
+                    alta: "text-red-400",
+                    media: "text-yellow-400",
+                    baixa: "text-gray-400",
+                  };
+                  const statusLabels = {
+                    nova: "Nova",
+                    em_contacto: "Em Contacto",
+                    qualificada: "Qualificada",
+                  };
+
+                  return (
+                    <Link
+                      key={lead.id}
+                      to="/leads"
+                      className="alert-item block"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <Target className={`mt-0.5 flex-shrink-0 ${priorityColors[lead.priority] || 'text-[#c8f31d]'}`} size={18} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white font-medium truncate">{lead.client_name}</p>
+                            <p className="text-white/40 text-xs">{statusLabels[lead.status] || lead.status}</p>
+                            {lead.partner_name && (
+                              <p className="text-white/50 text-sm truncate">{lead.partner_name}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          {lead.next_contact_date ? (
+                            <>
+                              <p className={`font-mono font-bold text-sm ${isOverdue ? 'text-red-400' : 'text-[#c8f31d]'}`}>
+                                {isOverdue ? 'Atrasada' : new Date(lead.next_contact_date).toLocaleDateString('pt-PT')}
+                              </p>
+                              <p className="text-white/40 text-xs flex items-center gap-1 justify-end">
+                                <Calendar size={12} />
+                                {new Date(lead.next_contact_date).toLocaleDateString('pt-PT')}
+                              </p>
+                            </>
+                          ) : (
+                            <p className="text-yellow-400 font-mono text-sm font-bold">Sem data</p>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-white/50">
+                <Target size={32} className="mx-auto mb-2 opacity-50" />
+                <p>Sem alertas de leads</p>
+              </div>
+            )}
+
+            {leadAlerts.length > 5 && (
+              <Link to="/leads">
+                <Button
+                  variant="ghost"
+                  className="w-full mt-4 text-[#c8f31d] hover:bg-[#c8f31d]/10"
+                >
+                  Ver todas ({leadAlerts.length})
+                  <ArrowRight size={16} className="ml-2" />
+                </Button>
+              </Link>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Lead Stats Summary */}
+        {leadStats && leadStats.total > 0 && (
+          <Card className="card-leiritrix" data-testid="lead-stats">
+            <CardHeader className="border-b border-white/5 pb-4">
+              <CardTitle className="text-white font-['Manrope'] text-lg">
+                Resumo de Leads
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="space-y-3">
+                {[
+                  { key: "nova", label: "Novas", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+                  { key: "em_contacto", label: "Em Contacto", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
+                  { key: "qualificada", label: "Qualificadas", color: "bg-green-500/20 text-green-400 border-green-500/30" },
+                  { key: "convertida", label: "Convertidas", color: "bg-[#c8f31d]/20 text-[#c8f31d] border-[#c8f31d]/30" },
+                  { key: "perdida", label: "Perdidas", color: "bg-red-500/20 text-red-400 border-red-500/30" },
+                ].map(({ key, label, color }) => {
+                  const count = leadStats.byStatus?.[key] || 0;
+                  return (
+                    <div key={key} className="flex items-center justify-between py-2">
+                      <span className={`badge ${color} border`}>{label}</span>
+                      <span className="text-white font-mono font-bold">{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Alerts Dialog */}

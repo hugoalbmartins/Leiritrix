@@ -19,6 +19,7 @@ import Partners from "@/pages/Partners";
 import Operators from "@/pages/Operators";
 import CommissionSettings from "@/pages/CommissionSettings";
 import CommissionWizard from "@/pages/CommissionWizard";
+import Leads from "@/pages/Leads";
 import Layout from "@/components/Layout";
 
 // Auth Context
@@ -205,6 +206,7 @@ function AppRoutes() {
       }>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
+        <Route path="leads" element={<Leads />} />
         <Route path="sales" element={<Sales />} />
         <Route path="sales/new" element={<SaleForm />} />
         <Route path="sales/:id" element={<SaleDetail />} />

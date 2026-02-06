@@ -207,6 +207,13 @@ export const salesService = {
         telecomunicacoes: salesData.filter(s => s.category === 'telecomunicacoes').length,
         paineis_solares: salesData.filter(s => s.category === 'paineis_solares').length,
       },
+      byStatus: {
+        em_negociacao: salesData.filter(s => s.status === 'em_negociacao').length,
+        pendente: salesData.filter(s => s.status === 'pendente').length,
+        ativo: salesData.filter(s => s.status === 'ativo').length,
+        perdido: salesData.filter(s => s.status === 'perdido').length,
+        anulado: salesData.filter(s => s.status === 'anulado').length,
+      },
     };
 
     return stats;

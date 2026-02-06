@@ -7,6 +7,7 @@ import { operatorsService } from "@/services/operatorsService";
 import { usersService } from "@/services/usersService";
 import { commissionsService } from "@/services/commissionsService";
 import { operatorClientCategoriesService } from "@/services/operatorClientCategoriesService";
+import { leadsService } from "@/services/leadsService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -155,7 +156,32 @@ export default function SaleForm() {
     if (refidFromId) {
       loadRefidSale(refidFromId);
     }
+
+    const leadId = searchParams.get('lead_id');
+    if (leadId) {
+      loadFromLead();
+    }
   }, []);
+
+  const loadFromLead = () => {
+    const leadNif = searchParams.get('client_nif') || "";
+    setNifInput(leadNif);
+    setShowForm(true);
+
+    setFormData(prev => ({
+      ...prev,
+      client_name: searchParams.get('client_name') || "",
+      client_email: searchParams.get('client_email') || "",
+      client_phone: searchParams.get('client_phone') || "",
+      client_nif: leadNif,
+      street_address: searchParams.get('street_address') || "",
+      postal_code: searchParams.get('postal_code') || "",
+      city: searchParams.get('city') || "",
+      category: searchParams.get('category') || "",
+      partner_id: searchParams.get('partner_id') || "",
+      operator_id: searchParams.get('operator_id') || "",
+    }));
+  };
 
   const loadRefidSale = async (saleId) => {
     try {
@@ -723,7 +749,17 @@ export default function SaleForm() {
         solar_panel_quantity: formData.solar_panel_quantity ? parseInt(formData.solar_panel_quantity) : null
       };
 
-      await salesService.createSale(payload);
+      const createdSale = await salesService.createSale(payload);
+
+      const leadId = searchParams.get('lead_id');
+      if (leadId) {
+        try {
+          await leadsService.convertToSale(leadId, createdSale.id);
+        } catch (convertError) {
+          console.error("Error converting lead:", convertError);
+        }
+      }
+
       toast.success("Venda criada com sucesso");
       navigate("/sales");
     } catch (error) {
